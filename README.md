@@ -119,3 +119,27 @@ Z Axis Compensation, Speed, Chamber Fan Speed, and Cooling Fan Speed
             "coolingFan": 100
         }
 ```
+
+## /uploadGcode
+- More info needed
+
+Example flow
+```
+POST /uploadGcode HTTP/1.1
+Host: 192.168.0.205:8898
+Accept: */*
+serialNumber:REDACTED
+checkCode:REDACTED
+fileSize:4922515
+printNow:true
+levelingBeforePrint:true
+Content-Length: 4922755
+Content-Type: multipart/form-data; boundary=------------------------DHD3lr8XwXBuyC8G3dWjK7
+Expect: 100-continue
+
+HTTP/1.1 100 Continue
+
+--------------------------DHD3lr8XwXBuyC8G3dWjK7
+Content-Disposition: form-data; name="gcodeFile"; filename="Lego Rounded Flower Stem x3.3mf"
+Content-Type: application/octet-stream
+```
