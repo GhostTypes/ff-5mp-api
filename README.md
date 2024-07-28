@@ -120,6 +120,18 @@ Z Axis Compensation, Speed, Chamber Fan Speed, and Cooling Fan Speed
         }
 ```
 
+Internal/External Filtration
+- Status of these can be checked via /detail endpoint; internalFanStatus & externalFanStatus
+
+
+```
+        "cmd": "circulateCtl_cmd",
+        "args": {
+            "internal": "close", (open = on, close = off)
+            "external": "close"
+        }
+```
+
 ## /uploadGcode
 - More info needed
 
