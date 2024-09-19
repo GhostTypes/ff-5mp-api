@@ -8,11 +8,20 @@ namespace FiveMApi
     {
         public static async Task Main(string[] args)
         {
-            var client = new FiveMClient("192.168.0.205", "SNMOMC9900728", "e5c2bf77");
+
+            //var discovery = new FlashForgePrinterDiscovery();
+            //var printers = await discovery.DiscoverPrintersAsync();
+
+            //foreach (var printer in printers)
+            //{
+            //    Console.WriteLine(printer);
+            //}
+            
+            /***var client = new FiveMClient("printer_ip", "printer_serial", "printer_code");
 
             //await client.UploadFile("C:\\Users\\Cope\\Downloads\\Pot_PLA_1h39m.gcode", false, false);
 
-            /***var info = await client.GetMachineInfo();
+            var info = await client.GetMachineInfo();
             Console.WriteLine($"Connected to {info.Name}");
             Console.WriteLine($"Firmware version: {info.FirmwareVersion}");
             Console.WriteLine($"Filament type: {info.FilamentType}");

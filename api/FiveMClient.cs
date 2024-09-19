@@ -31,7 +31,7 @@ namespace FiveMApi.api
             _checkCode = checkCode;
 
             _client = new HttpClient();
-            _client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("*/*"));
+            _client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("*/*"));
         }
 
         private string GetEndpoint(string endpoint)
@@ -44,26 +44,40 @@ namespace FiveMApi.api
             var ds = await GetDetails();
             return ds == null ? null : new MachineInfo().FromDetail(ds.Detail);
         }
-        
+
         private async Task<DetailResponse> GetDetails()
         {
             var payload = new
             {
-                serialNumber = $"{_serialNumber}",
-                checkCode = $"{_checkCode}"
+                serialNumber = _serialNumber,
+                checkCode = _checkCode
             };
-            
+
             var jsonPayload = JsonConvert.SerializeObject(payload);
             try
             {
                 var response = await _client.PostAsync(GetEndpoint(DetailEndpoint),
                     new StringContent(jsonPayload, Encoding.UTF8, "application/json"));
+                response.EnsureSuccessStatusCode(); // Throws if not 2XX
                 var data = await response.Content.ReadAsStringAsync();
+
+                // Log the raw JSON response for debugging
+                //Console.WriteLine($"Raw response: {data}");
+
                 return JsonConvert.DeserializeObject<DetailResponse>(data);
+            }
+            catch (HttpRequestException e)
+            {
+                Console.WriteLine($"Request error: {e.Message}");
+                if (e.InnerException != null)
+                {
+                    Console.WriteLine($"Inner exception: {e.InnerException.Message}");
+                }
+                return null;
             }
             catch (Exception e)
             {
-                Console.Write($"GetDetails json parsing error\n{e.Message}\n{e.StackTrace}");
+                Console.WriteLine($"Unexpected error: {e.Message}\n{e.StackTrace}");
                 return null;
             }
         }
@@ -75,7 +89,6 @@ namespace FiveMApi.api
         /// <param name="argz">Additional arguments</param>
         private async Task<bool> SendControlCommand(string command, dynamic argz)
         {
-            
             var payload = new
             {
                 serialNumber = _serialNumber,
@@ -87,7 +100,7 @@ namespace FiveMApi.api
                 }
             };
             var jsonPayload = JsonConvert.SerializeObject(payload);
-            
+
             Console.WriteLine("SendControlCommand:\n" + jsonPayload);
 
             try
@@ -104,7 +117,7 @@ namespace FiveMApi.api
                 return false;
             }
         }
-        
+
         /// <summary>
         /// Wrapper for sending "printer control" commands
         /// </summary>
@@ -126,7 +139,7 @@ namespace FiveMApi.api
 
             return await SendControlCommand(PrinterControlCmd, payload);
         }
-        
+
         /// <summary>
         /// Upload a GCode/3MF file to the printer
         /// </summary>
@@ -137,7 +150,7 @@ namespace FiveMApi.api
         {
             var fileInfo = new FileInfo(filePath);
             var fileSize = fileInfo.Length;
-            
+
             using (var content = new MultipartFormDataContent("------------------------DHD3lr8XwXBuyC8G3dWjK7"))
             {
                 content.Headers.Add("serialNumber", _serialNumber);
@@ -173,7 +186,6 @@ namespace FiveMApi.api
                 }
             }
         }
-        
 
         // Filtration commands
         private class FiltrationArgs
@@ -189,10 +201,9 @@ namespace FiveMApi.api
                 External = e ? "open" : "close";
             }
         }
-        
+
         private async Task<bool> SendFiltrationCommand(FiltrationArgs argz)
         {
-            //var payload = new { args = argz };
             return await SendControlCommand(CirculationControlCmd, argz);
         }
 
@@ -217,9 +228,7 @@ namespace FiveMApi.api
         {
             return await SendFiltrationCommand(new FiltrationArgs(false, false));
         }
-        
-        
-        
+
         // sending speed (overrides)
         public async Task<bool> SetSpeedOverride(int speed)
         {
@@ -245,7 +254,7 @@ namespace FiveMApi.api
             };
             return await SendControlCommand(LightControlCmd, payload);
         }
-        
+
         public async Task<bool> SetLedOff()
         {
             var payload = new
@@ -255,9 +264,6 @@ namespace FiveMApi.api
             return await SendControlCommand(LightControlCmd, payload);
         }
 
-
-
-
         public async Task<bool> VerifyConnection()
         {
             var details = await GetDetails();
@@ -265,17 +271,18 @@ namespace FiveMApi.api
         }
 
         public class MachineInfo
-        { // translate flashforge response (DetailResponse) into something that's easier to use
+        {
+            // translate flashforge response (DetailResponse) into something that's easier to use
             // also drops some unnecessary values
             public bool AutoShutdown { get; set; }
             public int AutoShutdownTime { get; set; }
-            
+
             public string CameraStreamUrl { get; set; }
-            
+
             // Fan speeds
             public int ChamberFanSpeed { get; set; }
             public int CoolingFanSpeed { get; set; }
-            
+
             /// <summary>
             /// Lifetime filament used (in meters)
             /// </summary>
@@ -284,12 +291,12 @@ namespace FiveMApi.api
             /// Lifetime print time
             /// </summary>
             public int CumulativePrintTime { get; set; }
-            
+
             public int CurrentPrintSpeed { get; set; }
-            
+
             public bool DoorOpen { get; set; }
             public string ErrorCode { get; set; }
-            
+
             /// <summary>
             /// Estimated filament used in meters
             /// </summary>
@@ -298,34 +305,32 @@ namespace FiveMApi.api
             /// Estimated filament used in grams
             /// </summary>
             public double EstWeight { get; set; }
-            
-            
+
             public double EstimatedTime { get; set; }
-            
+
             // Fans & Led Status
             public bool ExternalFanOn { get; set; }
             public bool InternalFanOn { get; set; }
             public bool LightsOn { get; set; }
-            
+
             /// <summary>
             /// Current print infill amount
             /// </summary>
             public int FillAmount { get; set; }
             public string FirmwareVersion { get; set; }
 
-
             public string Name { get; set; } // Adventurer 5M Pro
             public string NozzleSize { get; set; } // 0.4mm etc
-            
+
             // Print Bed and Extruder Temp
             public double PrintBedTemp { get; set; }
             public double PrintBedSetTemp { get; set; }
-            
+
             public double ExtruderTemp { get; set; }
             public double ExtruderSetTemp { get; set; }
-            
+
             // Current Print Stats
-            
+
             /// <summary>
             /// Elapsed print time in seconds
             /// </summary>
@@ -339,46 +344,43 @@ namespace FiveMApi.api
             /// </summary>
             public string PrintFileThumbUrl { get; set; }
             public int CurrentPrintLayer { get; set; }
-            
+
             /// <summary>
             /// Print progress as a double, from 0.X - 1.0
             /// </summary>
             public double PrintProgress { get; set; }
-            
+
             /// <summary>
             /// Print progress as an int, from 0 - 100
             /// </summary>
             public int PrintProgressInt { get; set; }
-            
-            public int PrintSpeedAdjust { get; set; }
+
+            public double PrintSpeedAdjust { get; set; } // Changed from int to double
             public string FilamentType { get; set; }
-            
-            
+
             public string Status { get; set; }
             public int TotalPrintLayers { get; set; }
             public int Tvoc { get; set; }
             public double ZAxisCompensation { get; set; }
-            
-            
+
             // extras
             public string PrintEta { get; set; }
             public string FormattedRunTime { get; set; }
             public string FormattedTotalRunTime { get; set; }
-            
 
             public MachineInfo FromDetail(Detail detail)
             {
                 PrintEta = TimeSpan.FromSeconds(detail.EstimatedTime).ToString(@"hh\:mm");
                 FormattedRunTime = TimeSpan.FromSeconds(detail.PrintDuration).ToString(@"hh\:mm");
                 FormattedTotalRunTime = TimeSpan.FromSeconds(detail.CumulativePrintTime).ToString(@"hh\:mm");
-                
+
                 // convert open/closed string to true/false
                 AutoShutdown = detail.AutoShutdown.Equals("open");
                 DoorOpen = detail.DoorStatus.Equals("open");
                 ExternalFanOn = detail.ExternalFanStatus.Equals("open");
                 InternalFanOn = detail.InternalFanStatus.Equals("open");
                 LightsOn = detail.LightStatus.Equals("open");
-                
+
                 AutoShutdownTime = detail.AutoShutdownTime;
                 CameraStreamUrl = detail.CameraStreamUrl;
                 ChamberFanSpeed = detail.ChamberFanSpeed;
@@ -406,7 +408,7 @@ namespace FiveMApi.api
 
                 CurrentPrintLayer = detail.PrintLayer;
                 PrintProgress = detail.PrintProgress;
-                PrintProgressInt = (int) PrintProgress * 100;
+                PrintProgressInt = (int)(PrintProgress * 100);
 
                 PrintSpeedAdjust = detail.PrintSpeedAdjust;
 
@@ -422,8 +424,7 @@ namespace FiveMApi.api
                 return this;
             }
         }
-        
-        
+
         public class Detail
         {
             public string AutoShutdown { get; set; }
@@ -433,7 +434,7 @@ namespace FiveMApi.api
             public int ChamberTargetTemp { get; set; } // not sure why these are in the fw, there's no chamber temp..
             public int ChamberTemp { get; set; }
             public int CoolingFanSpeed { get; set; }
-            public double CumulativeFilament { get; set; } 
+            public double CumulativeFilament { get; set; }
             public int CumulativePrintTime { get; set; }
             public int CurrentPrintSpeed { get; set; }
             public string DoorStatus { get; set; }
@@ -460,7 +461,7 @@ namespace FiveMApi.api
             public int NozzleCnt { get; set; } // always 1..
             public string NozzleModel { get; set; }
             public int NozzleStyle { get; set; } // not sure what the numbers translate to
-            
+
             public int Pid { get; set; }
             public double PlatTargetTemp { get; set; }
             public double PlatTemp { get; set; }
@@ -470,7 +471,7 @@ namespace FiveMApi.api
             public string PrintFileThumbUrl { get; set; }
             public int PrintLayer { get; set; }
             public double PrintProgress { get; set; }
-            public int PrintSpeedAdjust { get; set; }
+            public double PrintSpeedAdjust { get; set; } // Changed from int to double
             public double RemainingDiskSpace { get; set; }
             public string RightFilamentType { get; set; }
             public double RightTargetTemp { get; set; }
@@ -487,7 +488,7 @@ namespace FiveMApi.api
             public Detail Detail { get; set; }
             public string Message { get; set; }
         }
-        
+
         private class GenericResponse
         {
             public int Code { get; set; }

@@ -5,7 +5,7 @@
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
         <ProjectGuid>{9AC38EEA-E166-4DC8-A4B7-2D14A073768F}</ProjectGuid>
-        <OutputType>Exe</OutputType>
+        <OutputType>Library</OutputType>
         <AppDesignerFolder>Properties</AppDesignerFolder>
         <RootNamespace>FiveMApi</RootNamespace>
         <AssemblyName>FiveMApi</AssemblyName>
@@ -67,6 +67,7 @@
     </ItemGroup>
     <ItemGroup>
         <Compile Include="api\FiveMClient.cs" />
+        <Compile Include="api\PrinterDiscovery.cs" />
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
     </ItemGroup>
