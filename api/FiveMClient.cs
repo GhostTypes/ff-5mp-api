@@ -18,11 +18,13 @@ namespace FiveMApi.api
         private const int Port = 8898;
         
         
-        public Control Control { get; private set; }
-        public JobControl JobControl { get; private set; }
-        public Info Info { get; private set; }
+        public Control Control { get; private set; } // general controls
+        public JobControl JobControl { get; private set; } // uploading job/starting local job, pause stop resume, etc.
+        public Info Info { get; private set; } // parsing the full api response (for use elsewhere)
         
-        public Files Files { get; private set; }
+        public Files Files { get; private set; } // get recent files / local jobs, thumbnail data
+        
+        public TempControl TempControl { get; private set; } // setting extruder/bed temp, etc.
         
 
         public FlashForgeClient TcpClient { get; }

@@ -2,7 +2,7 @@
 {
     public partial class FiveMClient
     {
-        public abstract class Detail
+        public class Detail
         {
             public string AutoShutdown { get; set; }
             public int AutoShutdownTime { get; set; }

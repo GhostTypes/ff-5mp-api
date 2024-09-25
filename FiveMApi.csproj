@@ -84,10 +84,13 @@
     <ItemGroup>
         <Compile Include="api\controls\Control.cs" />
         <Compile Include="api\controls\Files.cs" />
+        <Compile Include="api\controls\Info.cs" />
         <Compile Include="api\controls\JobControl.cs" />
+        <Compile Include="api\controls\TempControl.cs" />
         <Compile Include="api\Detail.cs" />
+        <Compile Include="api\filament\Filament.cs" />
+        <Compile Include="api\filament\Filaments.cs" />
         <Compile Include="api\FiveMClient.cs" />
-        <Compile Include="api\Info.cs" />
         <Compile Include="api\MachineInfo.cs" />
         <Compile Include="api\PrinterDiscovery.cs" />
         <Compile Include="api\server\Commands.cs" />

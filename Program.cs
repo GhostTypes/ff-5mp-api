@@ -17,7 +17,7 @@ namespace FiveMApi
             //    Console.WriteLine(printer);
             //}
             
-            /***var client = new FiveMClient("printer_ip", "printer_serial", "printer_code");
+            /***var client = new FiveMClient("192.168.0.203", "SNMOMC9900728", "e5c2bf77");
 
             //await client.UploadFile("C:\\Users\\Cope\\Downloads\\Pot_PLA_1h39m.gcode", false, false);
 

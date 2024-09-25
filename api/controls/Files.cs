@@ -4,7 +4,9 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using FiveMApi.api.server;
+using FiveMApi.tcpapi;
 using Newtonsoft.Json;
+
 
 namespace FiveMApi.api.controls
 {
@@ -30,8 +32,17 @@ namespace FiveMApi.api.controls
             [JsonProperty("message")]
             public string Message { get; set; }
         }
+
+        public async Task<List<string>> GetLocalFileList()
+        {
+            return await _client.TcpClient.GetFileListAsync();
+        }
         
-        public async Task<List<string>> GetFileList()
+        /// <summary>
+        /// Get a list of the 10 most recently printed files (quick)
+        /// </summary>
+        /// <returns></returns>
+        public async Task<List<string>> GetRecentFileList()
         {
             var payload = new
             {
@@ -76,6 +87,11 @@ namespace FiveMApi.api.controls
             public string Message { get; set; }
         }
         
+        /// <summary>
+        /// Get the thumbnail for a file by name
+        /// </summary>
+        /// <param name="fileName"></param>
+        /// <returns></returns>
         public async Task<byte[]> GetGCodeThumbnail(string fileName)
         {
             var payload = new

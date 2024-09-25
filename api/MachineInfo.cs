@@ -6,9 +6,9 @@ namespace FiveMApi.api
     {
         public class MachineInfo
         {
-            // translate flashforge response (DetailResponse) into something that's easier to use
-            // also drops some unnecessary values
-            
+            // Translates flashforge response (DetailResponse) into something that's easier to use
+            // Also drops some unnecessary values
+
             /// <summary>
             /// If auto shutdown is enabled
             /// </summary>
@@ -17,7 +17,7 @@ namespace FiveMApi.api
             /// The auto-shutdown time (always 30?)
             /// </summary>
             public int AutoShutdownTime { get; set; }
-            
+
             /// <summary>
             /// URL to the printer webcam's MJPEG stream
             /// </summary>
@@ -41,17 +41,17 @@ namespace FiveMApi.api
             /// Lifetime print time in minutes
             /// </summary>
             public int CumulativePrintTime { get; set; }
-            
+
             /// <summary>
             /// Current print speed in mm/s
             /// </summary>
             public int CurrentPrintSpeed { get; set; }
-            
+
             /// <summary>
             /// Remaining disk space in GB, returned like 1.23 
             /// </summary>
             public string FreeDiskSpace { get; set; }
-            
+
             /// <summary>
             /// Printer door status, seems broken in firmware 2.7.5
             /// </summary>
@@ -62,21 +62,21 @@ namespace FiveMApi.api
             public string ErrorCode { get; set; }
 
             /// <summary>
-            /// Estimated filament used in meters (current print)
+            /// Estimated filament used so far in meters (current print)
             /// </summary>
             public double EstLength { get; set; }
             /// <summary>
-            /// Estimated filament used in grams (current print)
+            /// Estimated filament used so far in grams (current print)
             /// </summary>
             public double EstWeight { get; set; }
 
             public double EstimatedTime { get; set; }
 
-            // Fans & Led Status
+            // Fans & LED Status
             public bool ExternalFanOn { get; set; }
             public bool InternalFanOn { get; set; }
             public bool LightsOn { get; set; }
-            
+
             // Network
             public string IpAddress { get; set; }
             public string MacAddress { get; set; }
@@ -108,7 +108,7 @@ namespace FiveMApi.api
             /// </summary>
             public string PrintFileName { get; set; }
             /// <summary>
-            /// Url for thumbnail of the current job
+            /// URL for thumbnail of the current job
             /// </summary>
             public string PrintFileThumbUrl { get; set; }
             public int CurrentPrintLayer { get; set; }
@@ -130,12 +130,12 @@ namespace FiveMApi.api
             public int TotalPrintLayers { get; set; }
             public int Tvoc { get; set; }
             public double ZAxisCompensation { get; set; }
-            
-            // cloud codes
+
+            // Cloud codes
             public string FlashCloudRegisterCode { get; set; }
             public string PolarCloudRegisterCode { get; set; }
 
-            // extras
+            // Extras
             /// <summary>
             /// Estimated time remaining for current job in hh:mm
             /// </summary>
@@ -149,20 +149,23 @@ namespace FiveMApi.api
             /// </summary>
             public string FormattedTotalRunTime { get; set; }
 
+            public bool IsPrinting()
+            {
+                return Status.Equals("printing");
+            }
+
             public MachineInfo FromDetail(Detail detail)
             {
                 PrintEta = TimeSpan.FromSeconds(detail.EstimatedTime).ToString(@"hh\:mm");
                 FormattedRunTime = TimeSpan.FromSeconds(detail.PrintDuration).ToString(@"hh\:mm");
-                
+
                 var totalMinutes = detail.CumulativePrintTime;
                 var hours = totalMinutes / 60;
                 var minutes = totalMinutes % 60;
 
                 FormattedTotalRunTime = $"{hours}h:{minutes}m";
-                
-                //Console.WriteLine(FormattedTotalRunTime);
 
-                // convert open/closed string to true/false
+                // Convert open/closed string to true/false
                 AutoShutdown = detail.AutoShutdown.Equals("open");
                 DoorOpen = detail.DoorStatus.Equals("open");
                 ExternalFanOn = detail.ExternalFanStatus.Equals("open");
@@ -178,13 +181,28 @@ namespace FiveMApi.api
                 CurrentPrintSpeed = detail.CurrentPrintSpeed;
                 ErrorCode = detail.ErrorCode;
 
-                EstLength = detail.EstimatedRightLen - detail.CumulativeFilament;
-                EstWeight = detail.EstimatedRightWeight;
+                // Adjusted calculation for EstLength and EstWeight
+                // Convert total estimated filament from millimeters to meters
+                double totalJobFilamentMeters = detail.EstimatedRightLen / 1000.0;
+
+                // Calculate filament used so far based on print progress
+                double filamentUsedSoFarMeters = totalJobFilamentMeters * detail.PrintProgress;
+
+                EstLength = filamentUsedSoFarMeters;
+
+                // Calculate estimated filament weight used so far in grams
+                EstWeight = detail.EstimatedRightWeight * detail.PrintProgress;
+
+                // Debug output (optional)
+                //Console.WriteLine($"Total job filament (meters): {totalJobFilamentMeters}");
+                //Console.WriteLine($"Filament used so far (meters): {EstLength}");
+                //Console.WriteLine($"Print progress: {detail.PrintProgress * 100}%");
+
                 EstimatedTime = detail.EstimatedTime;
 
                 FillAmount = detail.FillAmount;
                 FirmwareVersion = detail.FirmwareVersion;
-                FreeDiskSpace = detail.RemainingDiskSpace.ToString("F2"); // 4.9913978576660156 -> 4.99
+                FreeDiskSpace = detail.RemainingDiskSpace.ToString("F2"); // e.g., 4.99
                 Name = detail.Name;
                 NozzleSize = detail.NozzleModel;
 

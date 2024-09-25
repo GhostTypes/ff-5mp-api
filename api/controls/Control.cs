@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using FiveMApi.api.server;
+using FiveMApi.tcpapi;
 using Newtonsoft.Json;
 
 namespace FiveMApi.api.controls
@@ -10,6 +11,7 @@ namespace FiveMApi.api.controls
     public class Control
     {
         private readonly FiveMClient _printerClient;
+        private readonly FlashForgeClient _tcpClient;
         
         
         private const string LightControlCmd = "lightControl_cmd";
@@ -20,12 +22,18 @@ namespace FiveMApi.api.controls
         internal Control(FiveMClient printerClient)
         {
             _printerClient = printerClient;
+            _tcpClient = printerClient.TcpClient;
         }
         
 
         public async Task<bool> HomeAxes()
         {
-            return await _printerClient.TcpClient.HomeAxes();
+            return await _tcpClient.HomeAxes();
+        }
+
+        public async Task<bool> HomeAxesRapid()
+        {
+            return await _tcpClient.RapidHome();
         }
 
         public async Task<bool> SetExternalFiltrationOn()
@@ -74,6 +82,16 @@ namespace FiveMApi.api.controls
                 status = "close"
             };
             return await SendControlCommand(LightControlCmd, payload);
+        }
+
+        public async Task<bool> TurnRunoutSensorOn()
+        {
+            return await _tcpClient.TurnRunoutSensorOn();
+        }
+
+        public async Task<bool> TurnRunoutSensorOff()
+        {
+            return await _tcpClient.TurnRunoutSensorOff();
         }
         
         

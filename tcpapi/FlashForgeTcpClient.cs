@@ -2,10 +2,12 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace FiveMApi.tcpapi
@@ -14,7 +16,7 @@ namespace FiveMApi.tcpapi
     {
         private Socket socket;
         private int port = 8899;
-        private int timeout = 25000;
+        private int timeout = 5000;
         protected string hostname;
 
         private NetworkStream _networkStream;
@@ -90,13 +92,15 @@ namespace FiveMApi.tcpapi
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.NetworkUnreachable)
             {
-                Debug.WriteLine("SendRawData failed, No route to host [" + ((IPEndPoint)socket.RemoteEndPoint).Address + "].");
+                Debug.WriteLine("SendRawData failed, No route to host [" + ((IPEndPoint)socket.RemoteEndPoint).Address +
+                                "].");
                 Debug.WriteLine(ex.StackTrace);
                 return false;
             }
             catch (SocketException ex) when (ex.SocketErrorCode == SocketError.HostNotFound)
             {
-                Debug.WriteLine("SendRawData failed, Unknown host [" + ((IPEndPoint)socket.RemoteEndPoint).Address + "].");
+                Debug.WriteLine("SendRawData failed, Unknown host [" + ((IPEndPoint)socket.RemoteEndPoint).Address +
+                                "].");
                 Debug.WriteLine(ex.StackTrace);
                 return false;
             }
@@ -106,6 +110,7 @@ namespace FiveMApi.tcpapi
                 Debug.WriteLine(e.StackTrace);
                 return false;
             }
+
             return true;
         }
 
@@ -155,24 +160,53 @@ namespace FiveMApi.tcpapi
 
         private async Task<string> ReceiveMultiLineReplayAsync(string cmd)
         {
-            Console.WriteLine("ReceiveMultiLineReplayAsync()");
+            Debug.WriteLine("ReceiveMultiLineReplayAsync()");
             var answer = new StringBuilder();
             try
             {
                 if (_networkStream == null) _networkStream = new NetworkStream(socket);
                 var reader = new StreamReader(_networkStream, Encoding.ASCII);
 
-                string line;
-                var doBreak = false;
-                while ((line = await reader.ReadLineAsync()) != null)
+                var buffer = new char[1024];
+                var shouldContinue = true;
+                
+                // some cursed code below.
+                using (var cts = new CancellationTokenSource(timeout))
                 {
-                    Console.WriteLine(line);
-                    answer.AppendLine(line);
-                    // weird fix, but M661 sends its data back (file list) after ok
-                    //if (cmd.Contains("M661") && line.Contains(".3mf")) break;
-                    if (line.Equals("ok", StringComparison.OrdinalIgnoreCase) && !cmd.Contains("M661")) break;
-                    if (cmd.Contains("M661") && line.Contains("~M662")) doBreak = true;
-                    else if (doBreak) break;
+                    try
+                    {
+                        while (shouldContinue && !cts.Token.IsCancellationRequested)
+                        {
+                            var readTask = reader.ReadAsync(buffer, 0, buffer.Length);
+                            var completedTask = await Task.WhenAny(readTask, Task.Delay(1000, cts.Token));
+
+                            if (completedTask == readTask)
+                            {
+                                var bytesRead = readTask.Result;
+                                if (bytesRead == 0) break;
+
+                                var chunk = new string(buffer, 0, bytesRead);
+                                Debug.WriteLine(chunk);
+                                answer.Append(chunk);
+
+                                // End of file list (starts streaming pngs from legacy api)
+                                if (chunk.Contains("~M662") && cmd.Equals("~M661") || !cmd.Equals("~M661") && chunk.Contains("ok"))
+                                {
+                                    shouldContinue = false;
+                                }
+                            }
+                            else
+                            {
+                                // Timeout reached
+                                Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
+                                break;
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        Debug.WriteLine("ReceiveMultiLineReplayAsync operation was canceled.");
+                    }
                 }
             }
             catch (IOException e)
@@ -189,53 +223,21 @@ namespace FiveMApi.tcpapi
 
         public async Task<List<string>> GetFileListAsync()
         {
-            //const string cmd = "M661";
             var response = await SendCommandAsync("~M661");
 
-            if (string.IsNullOrEmpty(response))
-            {
-                Debug.WriteLine("No response received for M661 command.");
-                return null;
-            }
+            if (!string.IsNullOrEmpty(response)) return ParseFileListResponse(response);
+            Debug.WriteLine("No response received for M661 command.");
+            return null;
 
-            return ParseFileListResponse(response);
         }
 
         private List<string> ParseFileListResponse(string response)
         {
-            var fileList = new List<string>();
-
-            // The response contains control characters and symbols; we need to extract file paths.
-            // Split the response using the delimiter "::??"
             var entries = response.Split(new[] { "::??" }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var entry in entries)
-            {
-                // Trim any leading/trailing whitespace and control characters
-                var trimmedEntry = entry.Trim();
-
-                // Find the index of "/data/"
-                var dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase);
-                if (dataIndex >= 0)
-                {
-                    // Extract the file path starting from "/data/"
-                    var filePath = trimmedEntry.Substring(dataIndex);
-
-                    // Remove any non-printable characters from the file path
-                    filePath = Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty);
-
-                    // Add to the list if it's not empty
-                    if (!string.IsNullOrEmpty(filePath))
-                    {
-                        fileList.Add(filePath);
-                    }
-                }
-            }
-
-            return fileList;
+            return (from entry in entries select entry.Trim() into trimmedEntry let dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase) where dataIndex >= 0 select trimmedEntry.Substring(dataIndex) into filePath select Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty) into filePath where !string.IsNullOrEmpty(filePath) select filePath.Replace("/data/", "")).ToList();
         }
 
-        
+
         private async Task<string> ReceiveSingleLineReplayAsync()
         {
             try
@@ -249,6 +251,7 @@ namespace FiveMApi.tcpapi
                     Debug.WriteLine("Single-line replay received:\n" + result);
                     return result;
                 }
+
                 Debug.WriteLine("Empty/null single-line replay received :(");
                 return null;
             }
