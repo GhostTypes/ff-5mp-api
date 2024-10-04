@@ -35,9 +35,56 @@ namespace FiveMApi.tcpapi
                 Debug.WriteLine("TcpPrinterClient failed to init!!!");
             }
         }
+        
+        private CancellationTokenSource _keepAliveCancellationTokenSource;
 
+        public void StartKeepAlive()
+        {
+            if (_keepAliveCancellationTokenSource != null)
+            {
+                // Keep-alive task is already running
+                return;
+            }
+
+            _keepAliveCancellationTokenSource = new CancellationTokenSource();
+            var token = _keepAliveCancellationTokenSource.Token;
+
+            Task.Run(async () =>
+            {
+                try
+                {
+                    while (!token.IsCancellationRequested)
+                    {
+                        Debug.WriteLine("KeepAlive");
+                        await SendCommandAsync("~M27");
+                        await Task.Delay(5000, token);
+                    }
+                }
+                catch (TaskCanceledException)
+                {
+                    // Task was canceled, no action needed
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine("KeepAlive encountered an exception: " + ex.Message);
+                }
+            }, token);
+        }
+
+        public void StopKeepAlive()
+        {
+            if (_keepAliveCancellationTokenSource == null) return;
+            _keepAliveCancellationTokenSource.Cancel();
+            _keepAliveCancellationTokenSource.Dispose();
+            _keepAliveCancellationTokenSource = null;
+            Debug.WriteLine("Keep-alive stopped.");
+        }
+        
+        private readonly SemaphoreSlim _socketSemaphore = new SemaphoreSlim(1, 1);
+        
         public async Task<string> SendCommandAsync(string cmd)
         {
+            await _socketSemaphore.WaitAsync();
             Debug.WriteLine("sendCommand: " + cmd);
             try
             {
@@ -71,6 +118,10 @@ namespace FiveMApi.tcpapi
                 var err = "Error while building or writing output stream:\n" + e.StackTrace;
                 Debug.WriteLine(err);
                 return null;
+            }
+            finally
+            {
+                _socketSemaphore.Release();
             }
         }
 
@@ -133,6 +184,8 @@ namespace FiveMApi.tcpapi
 
             Debug.WriteLine("Reconnecting to socket...");
             Connect();
+            StartKeepAlive(); // start this here rather than Connect(), because Connect() is called in the constructor
+            // this will only be called after creation (socket error, reset, etc.)
         }
 
         private void CheckStream()
@@ -152,6 +205,7 @@ namespace FiveMApi.tcpapi
         private void ResetSocket()
         {
             Debug.WriteLine("ResetSocket()");
+            StopKeepAlive();
             _networkStream.Close();
             _networkStream = null;
             socket.Close();
@@ -171,42 +225,39 @@ namespace FiveMApi.tcpapi
                 var shouldContinue = true;
                 
                 // some cursed code below.
-                using (var cts = new CancellationTokenSource(timeout))
+                try
                 {
-                    try
+                    while (shouldContinue)
                     {
-                        while (shouldContinue && !cts.Token.IsCancellationRequested)
+                        var readTask = reader.ReadAsync(buffer, 0, buffer.Length);
+                        var completedTask = await Task.WhenAny(readTask, Task.Delay(1500));
+
+                        if (completedTask == readTask)
                         {
-                            var readTask = reader.ReadAsync(buffer, 0, buffer.Length);
-                            var completedTask = await Task.WhenAny(readTask, Task.Delay(1000, cts.Token));
+                            var bytesRead = readTask.Result;
+                            if (bytesRead == 0) break;
 
-                            if (completedTask == readTask)
+                            var chunk = new string(buffer, 0, bytesRead);
+                            Debug.WriteLine(chunk);
+                            answer.Append(chunk);
+
+                            // End of file list (starts streaming pngs from legacy api)
+                            if (chunk.Contains("~M662") && cmd.Equals("~M661") || !cmd.Equals("~M661") && chunk.Contains("ok"))
                             {
-                                var bytesRead = readTask.Result;
-                                if (bytesRead == 0) break;
-
-                                var chunk = new string(buffer, 0, bytesRead);
-                                Debug.WriteLine(chunk);
-                                answer.Append(chunk);
-
-                                // End of file list (starts streaming pngs from legacy api)
-                                if (chunk.Contains("~M662") && cmd.Equals("~M661") || !cmd.Equals("~M661") && chunk.Contains("ok"))
-                                {
-                                    shouldContinue = false;
-                                }
-                            }
-                            else
-                            {
-                                // Timeout reached
-                                Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
-                                break;
+                                shouldContinue = false;
                             }
                         }
+                        else
+                        {
+                            // Timeout reached
+                            Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
+                            break;
+                        }
                     }
-                    catch (OperationCanceledException)
-                    {
-                        Debug.WriteLine("ReceiveMultiLineReplayAsync operation was canceled.");
-                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.WriteLine("ReceiveMultiLineReplayAsync operation was canceled.");
                 }
             }
             catch (IOException e)
@@ -223,7 +274,14 @@ namespace FiveMApi.tcpapi
 
         public async Task<List<string>> GetFileListAsync()
         {
+
             var response = await SendCommandAsync("~M661");
+            ResetSocket();
+            await Task.Delay(500);
+            CheckSocket(); // reconnect socket + re-start keep-alive
+            await Task.Delay(250);
+            await SendCommandAsync("~M601 S1");
+            await Task.Delay(250);
 
             if (!string.IsNullOrEmpty(response)) return ParseFileListResponse(response);
             Debug.WriteLine("No response received for M661 command.");
@@ -266,12 +324,14 @@ namespace FiveMApi.tcpapi
             try
             {
                 Debug.WriteLine("TcpPrinterClient closing socket");
-                socket.Close();
+                _networkStream?.Dispose();
+                socket?.Close();
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
             }
         }
+
     }
 }

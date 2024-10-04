@@ -65,7 +65,11 @@ namespace FiveMApi.tcpapi
             while (tries <= 5)
             {
                 var result = await SendRawCmd(CmdLogin);
-                if (!result.Contains("Control failed.") && result.Contains("ok")) return true;
+                if (!result.Contains("Control failed.") && result.Contains("ok"))
+                {
+                    StartKeepAlive(); // socket "times out" printer-side after a few seconds of no incoming commands..
+                    return true;
+                }
                 tries++;
             }
 
@@ -74,7 +78,15 @@ namespace FiveMApi.tcpapi
         
         public async Task<bool> HomeAxes()
         {
-            return await SendCmdOk(CmdHomeAxes);
+            try
+            {
+                await SendRawCmd(CmdHomeAxes);
+                return true;
+            }
+            catch (Exception ignored)
+            {
+                return false;
+            }
         }
 
         public async Task<bool> RapidHome()
@@ -213,22 +225,15 @@ namespace FiveMApi.tcpapi
         private async Task<bool> SendCmdOk(string cmd)
         {
 
-            for (var attempt = 1; attempt <= 3; attempt++)
+            try
             {
-                try
-                {
-                    var reply = await SendCommandAsync(cmd); // send TCP command
-                    if (reply.Contains("Received.") && reply.Contains("ok")) return true; // verify response
-                }
-                catch (Exception ex)
-                {  
-                    Console.WriteLine($"Exception sending cmd: {cmd} : {ex}");
-                    continue;
-                }
-                
-                Console.WriteLine($"SendCmdOk failed with cmd: {cmd} (attempt {attempt})");
-                await InitControl(); // make sure control is set
-                await Task.Delay(500 * attempt); 
+                var reply = await SendCommandAsync(cmd); // send TCP command
+                if (reply.Contains("Received.") && reply.Contains("ok")) return true; // verify response
+            }
+            catch (Exception ex)
+            {  
+                Console.WriteLine($"Exception sending cmd: {cmd} : {ex}");
+                return false;
             }
             return false;
         }
