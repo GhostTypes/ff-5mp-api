@@ -2,6 +2,7 @@
 {
     public class Endpoints
     {
+        public const string Product = "/product";
         public const string Control = "/control";
         public const string Detail = "/detail";
         public const string UploadFile = "/uploadGcode";

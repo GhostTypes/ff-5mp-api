@@ -37,7 +37,8 @@ namespace FiveMApi.tcpapi
         }
         
         private CancellationTokenSource _keepAliveCancellationTokenSource;
-
+        
+        private int keepAliveErrors;
         public void StartKeepAlive()
         {
             if (_keepAliveCancellationTokenSource != null)
@@ -56,8 +57,20 @@ namespace FiveMApi.tcpapi
                     while (!token.IsCancellationRequested)
                     {
                         Debug.WriteLine("KeepAlive");
-                        await SendCommandAsync("~M27");
-                        await Task.Delay(5000, token);
+                        if (await SendCommandAsync("~M27") == null)
+                        { // keep alive failed, connection error/timeout etc
+                            keepAliveErrors++; // keep track of errors
+                            Debug.WriteLine($"Current keep alive failure: {keepAliveErrors}");
+                            break;
+                        }
+
+                        if (keepAliveErrors > 0) keepAliveErrors--; // move back to 0 errors with each "good" keep-alive
+                        // increase keep alive timeout based on error count
+                        // in normal situations even with a meh wifi speed/router, 5000ms is (should be) plenty of time
+                        // other API/UI etc traffic may also affect this/vice versa. still working out the kinks
+                        // the printer also seems to get "overloaded" sometimes when actively printing, but haven't narrowed it down
+                        // to anything constant
+                        await Task.Delay(5000 + keepAliveErrors * 1000, token);
                     }
                 }
                 catch (TaskCanceledException)
@@ -78,6 +91,10 @@ namespace FiveMApi.tcpapi
             _keepAliveCancellationTokenSource.Dispose();
             _keepAliveCancellationTokenSource = null;
             Debug.WriteLine("Keep-alive stopped.");
+            Task.Run(async () =>
+            {
+                await SendCommandAsync("~M602");
+            });
         }
         
         private readonly SemaphoreSlim _socketSemaphore = new SemaphoreSlim(1, 1);
@@ -94,8 +111,8 @@ namespace FiveMApi.tcpapi
                 await writer.WriteLineAsync(cmd);
                 await writer.FlushAsync();
                 var reply = await ReceiveMultiLineReplayAsync(cmd);
-                if (reply != null) return reply;
-                Debug.WriteLine("Invalid replay received, resetting connection to printer.");
+                if (reply != null) return reply; // null checked in ReceiveMultiLineReplayAsync but doesn't hurt
+                Debug.WriteLine("Invalid or no replay received, resetting connection to printer.");
                 ResetSocket();
                 CheckSocket();
                 return null;
@@ -251,7 +268,7 @@ namespace FiveMApi.tcpapi
                         {
                             // Timeout reached
                             Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
-                            break;
+                            return null;
                         }
                     }
                 }
@@ -268,6 +285,11 @@ namespace FiveMApi.tcpapi
             }
 
             var result = answer.ToString();
+            if (string.IsNullOrEmpty(result))
+            { // final sanity check (should never be reached..)
+                Debug.WriteLine("ReceiveMultiLineReplayAsync null/empty command reply");
+                return null;
+            }
             Debug.WriteLine("Multi-line replay received:\n" + result);
             return result;
         }
