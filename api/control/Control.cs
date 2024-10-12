@@ -2,6 +2,7 @@
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using FiveMApi.api.misc;
 using FiveMApi.api.server;
 using FiveMApi.tcpapi;
 using Newtonsoft.Json;
@@ -48,6 +49,11 @@ namespace FiveMApi.api.controls
         public async Task<bool> SetSpeedOverride(int speed)
         {
             return await SendPrinterControlCmd(printSpeed: speed);
+        }
+
+        public async Task<bool> SetZAxisOverride(float offset)
+        {
+            return await SendPrinterControlCmd(zOffset: offset);
         }
 
         public async Task<bool> SetChamberFanSpeed(int speed)
@@ -106,7 +112,12 @@ namespace FiveMApi.api.controls
                     args = argz
                 }
             };
-            var jsonPayload = JsonConvert.SerializeObject(payload);
+            
+            
+            var settings = new JsonSerializerSettings();
+            if (command.Equals(Commands.PrinterControlCmd)) settings.Converters.Add(new ScientificNotationFloatConverter()); // properly serialize data
+            
+            var jsonPayload = JsonConvert.SerializeObject(payload, settings);
 
             Console.WriteLine("SendControlCommand:\n" + jsonPayload);
 
@@ -139,20 +150,31 @@ namespace FiveMApi.api.controls
         /// <param name="printSpeed">Print speed offset</param>
         /// <param name="chamberFanSpeed">Chamber Fan Speed</param>
         /// <param name="coolingFanSpeed">Cooling Fan Speed</param>
+        /// 
         /// <returns></returns>
-        private async Task<bool> SendPrinterControlCmd(string zOffset = "0E0", int printSpeed = 100, int chamberFanSpeed = 100,
+        private async Task<bool> SendPrinterControlCmd(float zOffset = 0E0f, int printSpeed = 100, int chamberFanSpeed = 100,
             int coolingFanSpeed = 100)
         {
 
-            if (!await _client.Info.IsPrinting()) // will break communication until reboot if sent w/o an active job.. nice one FlashForge.
+            var info = await _client.Info.Get();
+            
+            if (info.CurrentPrintLayer < 2)
+            { // don't accidentally turn on the fans in the initial layers
+                chamberFanSpeed = 0;
+                coolingFanSpeed = 0;
+            }
+            
+            if (!info.IsPrinting()) // will break communication until reboot if sent w/o an active job.. nice one FlashForge.
                 throw new Exception("Attempted to send printerCtl_cmd with no active job");
+            
             
             var payload = new
             {
                 zAxisCompensation = zOffset,
                 speed = printSpeed,
                 chamberFan = chamberFanSpeed,
-                coolingFan = coolingFanSpeed
+                coolingFan = coolingFanSpeed,
+                coolingLeftFan = 0 // this is unused? not sure why this is in the firmware.
             };
 
             return await SendControlCommand(Commands.PrinterControlCmd, payload);

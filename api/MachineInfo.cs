@@ -159,6 +159,11 @@ namespace FiveMApi.api
                 return Status.Equals("completed");
             }
 
+            public bool IsReady()
+            {
+                return Status.Equals("ready");
+            }
+
             public MachineInfo FromDetail(Detail detail)
             {
                 PrintEta = TimeSpan.FromSeconds(detail.EstimatedTime).ToString(@"hh\:mm");

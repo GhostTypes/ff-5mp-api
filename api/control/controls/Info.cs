@@ -35,6 +35,12 @@ namespace FiveMApi.api.controls
             var info = await Get();
             return info.Status == "printing";
         }
+
+        /**public async Task<bool> IsReady()
+        {
+            var info = await Get();
+            return info.Status == "ready";
+        }**/
         
         public async Task<DetailResponse> GetDetailResponse()
         {

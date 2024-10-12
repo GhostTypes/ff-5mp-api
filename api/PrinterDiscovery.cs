@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
@@ -26,7 +27,7 @@ namespace FiveMApi.api
     {
         private const int DiscoveryPort = 19000;
 
-        public async Task<List<FlashForgePrinter>> DiscoverPrintersAsync(int timeoutMs = 5000, int idleTimeoutMs = 1500)
+        public async Task<List<FlashForgePrinter>> DiscoverPrintersAsync(int timeoutMs = 10000, int idleTimeoutMs = 1500)
         {
             var printers = new List<FlashForgePrinter>();
             var broadcastAddresses = GetBroadcastAddresses().ToList();
@@ -41,6 +42,7 @@ namespace FiveMApi.api
                 {
                     try
                     {
+                        Debug.WriteLine("Broadcasting printer discovery to: " + broadcastAddress.Address);
                         await udpClient.SendAsync(discoveryMessage, discoveryMessage.Length, broadcastAddress);
                     }
                     catch (Exception ex)
@@ -122,11 +124,14 @@ namespace FiveMApi.api
 
         private static FlashForgePrinter ParsePrinterResponse(byte[] response, IPAddress ipAddress)
         {
+            Debug.WriteLine("Printer discovery response from: " + ipAddress);
             if (response == null || response.Length < 0xC4) return null;
 
             var name = Encoding.ASCII.GetString(response, 0, 32).TrimEnd('\0'); // Printer name (offset 0x00)
             var serialNumber = Encoding.ASCII.GetString(response, 0x92, 32).TrimEnd('\0'); // Serial number (offset 0x92)
-
+            
+            Debug.WriteLine("Valid printer: " + name + "(" + serialNumber + ")");
+            
             return new FlashForgePrinter
             {
                 Name = name,
