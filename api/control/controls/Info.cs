@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using FiveMApi.api.server;
 using Newtonsoft.Json;
 
-namespace FiveMApi.api.controls
+namespace FiveMApi.api.control.controls
 {
     public class Info
     {
@@ -36,11 +37,11 @@ namespace FiveMApi.api.controls
             return info.Status == "printing";
         }
 
-        /**public async Task<bool> IsReady()
+        public async Task<string> GetStatus()
         {
             var info = await Get();
-            return info.Status == "ready";
-        }**/
+            return info.Status;
+        }
         
         public async Task<DetailResponse> GetDetailResponse()
         {
@@ -53,28 +54,25 @@ namespace FiveMApi.api.controls
             var jsonPayload = JsonConvert.SerializeObject(payload);
             try
             {
-                var response = await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.Detail),
+                var response = await _client.HttpClient.PostAsync(
+                    _client.GetEndpoint(Endpoints.Detail),
                     new StringContent(jsonPayload, Encoding.UTF8, "application/json"));
-                response.EnsureSuccessStatusCode(); // Throws if not 2XX
+                response.EnsureSuccessStatusCode();
                 var data = await response.Content.ReadAsStringAsync();
-
-                // Log the raw JSON response for debugging
-                //Console.WriteLine($"Raw response: {data}");
-
                 return JsonConvert.DeserializeObject<DetailResponse>(data);
             }
             catch (HttpRequestException e)
             {
-                Console.WriteLine($"Request error: {e.Message}");
+                Debug.WriteLine($"GetDetailResponse Request error: {e.Message}");
                 if (e.InnerException != null)
                 {
-                    Console.WriteLine($"Inner exception: {e.InnerException.Message}");
+                    Debug.WriteLine($"GetDetailResponse Inner exception: {e.InnerException.Message}");
                 }
                 return null;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"Unexpected error: {e.Message}\n{e.StackTrace}");
+                Debug.WriteLine($"GetDetailResponse Unexpected error: {e.Message}\n{e.StackTrace}");
                 return null;
             }
         }

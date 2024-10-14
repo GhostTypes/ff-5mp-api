@@ -2,22 +2,22 @@
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using FiveMApi.api.server;
-using FiveMApi.tcpapi;
 using Newtonsoft.Json;
 
-namespace FiveMApi.api.controls
+namespace FiveMApi.api.control.controls
 {
     public class Files
     {
         private readonly FiveMClient _client;
-        private readonly Control _control;
+        //private readonly Control _control;
         
         internal Files(FiveMClient printerClient)
         {
             _client = printerClient;
-            _control = printerClient.Control;
+            //_control = printerClient.Control;
         }
         
         public class GCodeListResponse
@@ -87,6 +87,18 @@ namespace FiveMApi.api.controls
             public string Message { get; set; }
         }
         
+        private readonly SemaphoreSlim _thumbnailSemaphore = new SemaphoreSlim(1, 8);
+
+        private async Task ThumbnailWait()
+        {
+            await _thumbnailSemaphore.WaitAsync();
+        }
+
+        private void ThumbnailRelease()
+        {
+            _thumbnailSemaphore.Release();
+        }
+        
         /// <summary>
         /// Get the thumbnail for a file by name
         /// </summary>
@@ -102,7 +114,8 @@ namespace FiveMApi.api.controls
             };
 
             var jsonPayload = JsonConvert.SerializeObject(payload);
-            await _client.HttpClientSemaphore.WaitAsync();
+            //await _client.HttpClientSemaphore.WaitAsync();
+            await ThumbnailWait();
             try
             {
                 var response = await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.GCodeThumb),
@@ -123,7 +136,7 @@ namespace FiveMApi.api.controls
             }
             finally
             {
-                _client.ReleaseHttpClient();
+                ThumbnailRelease();
             }
         }
     }

@@ -149,25 +149,10 @@ namespace FiveMApi.api
             /// </summary>
             public string FormattedTotalRunTime { get; set; }
 
-            public bool IsPrinting()
-            {
-                return Status.Equals("printing");
-            }
-
-            public bool IsJobComplete()
-            {
-                return Status.Equals("completed");
-            }
-
-            public bool IsReady()
-            {
-                return Status.Equals("ready");
-            }
-
-            public bool IsBusy()
-            {
-                return Status.Equals("busy");
-            }
+            public bool IsPrinting() { return Status.Equals("printing"); }
+            public bool IsJobComplete() { return Status.Equals("completed"); }
+            public bool IsReady() { return Status.Equals("ready"); }
+            public bool IsBusy() { return Status.Equals("busy"); }
 
             public MachineInfo FromDetail(Detail detail)
             {
@@ -182,7 +167,7 @@ namespace FiveMApi.api
 
                 // Convert open/closed string to true/false
                 AutoShutdown = detail.AutoShutdown.Equals("open");
-                DoorOpen = detail.DoorStatus.Equals("open");
+                DoorOpen = detail.DoorStatus.Equals("open"); // broken and/or not implemented
                 ExternalFanOn = detail.ExternalFanStatus.Equals("open");
                 InternalFanOn = detail.InternalFanStatus.Equals("open");
                 LightsOn = detail.LightStatus.Equals("open");
@@ -196,22 +181,12 @@ namespace FiveMApi.api
                 CurrentPrintSpeed = detail.CurrentPrintSpeed;
                 ErrorCode = detail.ErrorCode;
 
-                // Adjusted calculation for EstLength and EstWeight
-                // Convert total estimated filament from millimeters to meters
-                double totalJobFilamentMeters = detail.EstimatedRightLen / 1000.0;
 
-                // Calculate filament used so far based on print progress
-                double filamentUsedSoFarMeters = totalJobFilamentMeters * detail.PrintProgress;
-
+                var totalJobFilamentMeters = detail.EstimatedRightLen / 1000.0; // Convert total estimated filament from millimeters to meters
+                var filamentUsedSoFarMeters = totalJobFilamentMeters * detail.PrintProgress; // Calculate filament used so far based on print progress
                 EstLength = filamentUsedSoFarMeters;
-
-                // Calculate estimated filament weight used so far in grams
-                EstWeight = detail.EstimatedRightWeight * detail.PrintProgress;
-
-                // Debug output (optional)
-                //Console.WriteLine($"Total job filament (meters): {totalJobFilamentMeters}");
-                //Console.WriteLine($"Filament used so far (meters): {EstLength}");
-                //Console.WriteLine($"Print progress: {detail.PrintProgress * 100}%");
+                EstWeight = detail.EstimatedRightWeight * detail.PrintProgress; // Calculate estimated filament weight used so far in grams
+                
 
                 EstimatedTime = detail.EstimatedTime;
 

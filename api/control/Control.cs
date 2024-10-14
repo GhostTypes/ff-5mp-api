@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
@@ -70,20 +71,12 @@ namespace FiveMApi.api.controls
 
         public async Task<bool> SetLedOn()
         {
-            var payload = new
-            {
-                status = "open"
-            };
-            return await SendControlCommand(Commands.LightControlCmd, payload);
+            return await SendControlCommand(Commands.LightControlCmd, new { status = "open" });
         }
 
         public async Task<bool> SetLedOff()
         {
-            var payload = new
-            {
-                status = "close"
-            };
-            return await SendControlCommand(Commands.LightControlCmd, payload);
+            return await SendControlCommand(Commands.LightControlCmd, new { status = "close" });
         }
 
         public async Task<bool> TurnRunoutSensorOn()
@@ -120,16 +113,16 @@ namespace FiveMApi.api.controls
             if (command.Equals(Commands.PrinterControlCmd)) settings.Converters.Add(new ScientificNotationFloatConverter()); // properly serialize data
             
             var jsonPayload = JsonConvert.SerializeObject(payload, settings);
-
-            Console.WriteLine("SendControlCommand:\n" + jsonPayload);
+            Debug.WriteLine("SendControlCommand:\n" + jsonPayload);
 
             try
             {
                 await _client.HttpClientSemaphore.WaitAsync();
-                var response = await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.Control),
+                var response = await _client.HttpClient.PostAsync(
+                    _client.GetEndpoint(Endpoints.Control),
                     new StringContent(jsonPayload, Encoding.UTF8, "application/json"));
                 var data = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Command reply: {data}");
+                Debug.WriteLine($"Command reply: {data}");
                 var result = JsonConvert.DeserializeObject<GenericResponse>(data);
                 return result.Message.Equals("Success");
             }

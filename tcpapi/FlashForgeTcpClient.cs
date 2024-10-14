@@ -81,12 +81,12 @@ namespace FiveMApi.tcpapi
 
         public void StopKeepAlive(bool logout = false)
         {
+            if (logout) Task.Run(async () => { await SendCommandAsync("~M602"); });
             if (_keepAliveCancellationTokenSource == null) return;
             _keepAliveCancellationTokenSource.Cancel();
             _keepAliveCancellationTokenSource.Dispose();
             _keepAliveCancellationTokenSource = null;
             Debug.WriteLine("Keep-alive stopped.");
-            if (logout) Task.Run(async () => { await SendCommandAsync("~M602"); });
         }
 
         private readonly SemaphoreSlim _socketSemaphore = new SemaphoreSlim(1, 1);

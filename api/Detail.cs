@@ -14,7 +14,7 @@
             public double CumulativeFilament { get; set; }
             public int CumulativePrintTime { get; set; }
             public int CurrentPrintSpeed { get; set; }
-            public string DoorStatus { get; set; }
+            public string DoorStatus { get; set; } // broken and/or not implented
             public string ErrorCode { get; set; } // need more info
             public int EstimatedLeftLen { get; set; } // no left extruder..
             public double EstimatedLeftWeight { get; set; }
@@ -56,7 +56,7 @@
             public string Status { get; set; }
             public int TargetPrintLayer { get; set; }
             public int Tvoc { get; set; }
-            public double ZAxisCompensation { get; set; }
+            public double ZAxisCompensation { get; set; } // technically a float..
         }
     }
 }

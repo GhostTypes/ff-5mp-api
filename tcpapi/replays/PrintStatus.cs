@@ -3,8 +3,12 @@ using System.Diagnostics;
 
 namespace FiveMApi.tcpapi.replays
 {
+    /// <summary>
+    /// Deprecated
+    /// </summary>
     public class PrintStatus
     {
+        // This shouldn't be used by anything. Rely on the new api
         private string _sdCurrent;
         private string _sdTotal;
         private string _layerCurrent;
@@ -12,25 +16,17 @@ namespace FiveMApi.tcpapi.replays
 
         public PrintStatus FromReplay(string replay)
         {
-            //Console.WriteLine("PrintStatus replay:\n" + replay);
             var data = replay.Split('\n');
-
-            // this should be safe because it returns default values when not printing
             var sdProgress = data[1].Replace("SD printing byte ", "").Trim();
             var sdProgressData = sdProgress.Split('/');
             _sdCurrent = sdProgressData[0].Trim();
             _sdTotal = sdProgressData[1].Trim();
-
-            // added all this bullshit because it started throwing index out of bounds,
-            // hopefully can narrow it down, and it doesn't start happening to sdProgress
+            
             string layerProgress;
-            try
-            {
-                layerProgress = data[2].Replace("Layer: ", "").Trim();
-            }
+            try { layerProgress = data[2].Replace("Layer: ", "").Trim(); }
             catch (Exception e)
             {
-                Debug.WriteLine("PrintStatus bad layer progress bullshit pt1");
+                Debug.WriteLine("PrintStatus bad layer progress");
                 Debug.WriteLine("Raw printer replay: " + replay);
                 Debug.WriteLine(e.StackTrace);
                 return null;
@@ -44,7 +40,7 @@ namespace FiveMApi.tcpapi.replays
             }
             catch (Exception e)
             {
-                Debug.WriteLine("PrintStatus bad layer progress bullshit pt2");
+                Debug.WriteLine("PrintStatus bad layer progress");
                 Debug.WriteLine("layerProgress: " + layerProgress);
                 Debug.WriteLine(e.StackTrace);
                 return null;

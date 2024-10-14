@@ -27,7 +27,7 @@ namespace FiveMApi.tcpapi.replays
                 else if (machineStatus.Contains("READY")) _MachineStatus = MachineStatus.READY;
                 else
                 {
-                    Console.WriteLine("Encountered unknown MachineStatus: " + machineStatus);
+                    Debug.WriteLine("EndstopStatus Encountered unknown MachineStatus: " + machineStatus);
                     _MachineStatus = MachineStatus.DEFAULT;
                 }
                 var moveM = data[3].Replace("MoveMode: ", "").Trim();
@@ -36,7 +36,7 @@ namespace FiveMApi.tcpapi.replays
                 else if (moveM.Contains("READY")) _MoveMode = MoveMode.READY;
                 else
                 {
-                    Console.WriteLine("Encountered unknown MoveMode: " + moveM);
+                    Debug.WriteLine("EndstopStatus Encountered unknown MoveMode: " + moveM);
                     _MoveMode = MoveMode.DEFAULT;
                 }
                 _Status = new Status(data[4]);
@@ -56,7 +56,10 @@ namespace FiveMApi.tcpapi.replays
 
         public class Status
         {
-            public int S, L, J, F;
+            public int S { get; set; }
+            public int L { get; set; }
+            public int J { get; set; }
+            public int F { get; set; }
 
             public Status(string data)
             {
@@ -69,7 +72,9 @@ namespace FiveMApi.tcpapi.replays
 
         public class Endstop
         {
-            public int Xmax, Ymax, Zmin;
+            public int Xmax { get; set; }
+            public int Ymax { get; set; }
+            public int Zmin { get; set; }
 
             public Endstop(string data)
             {
@@ -87,44 +92,13 @@ namespace FiveMApi.tcpapi.replays
             return -1;
         }
 
-        public bool IsPrintComplete()
-        { // check if the printer is in "print complete" state
-            return /*_MachineStatus == MachineStatus.READY ||*/ _MachineStatus == MachineStatus.BUILDING_COMPLETED;
-        }
-
-        public bool IsPrinting()
-        { // check if the printer is printing rn
-            return _MachineStatus == MachineStatus.BUILDING_FROM_SD;
-        }
-
-        public bool IsReady()
-        { // check if the printer is ready to print//
-            return _MoveMode == MoveMode.READY && _MachineStatus == MachineStatus.READY;
-        }
-
-        public bool IsPaused()
-        { // todo need to see what the difference in each pause represents..
-            return _MachineStatus == MachineStatus.PAUSED || _MoveMode == MoveMode.PAUSED;
-        }
+        public bool IsPrintComplete() { return _MachineStatus == MachineStatus.BUILDING_COMPLETED; }
+        public bool IsPrinting() { return _MachineStatus == MachineStatus.BUILDING_FROM_SD; }
+        public bool IsReady() { return _MoveMode == MoveMode.READY && _MachineStatus == MachineStatus.READY; }
+        public bool IsPaused() { return _MachineStatus == MachineStatus.PAUSED || _MoveMode == MoveMode.PAUSED; } //todo what's the difference between the two states?
     }
     
+    public enum MachineStatus { BUILDING_FROM_SD, BUILDING_COMPLETED, PAUSED, READY, DEFAULT }
 
-    
-    
-    public enum MachineStatus
-    {
-        BUILDING_FROM_SD,
-        BUILDING_COMPLETED,
-        PAUSED,
-        READY,
-        DEFAULT // Adjust as needed
-    }
-
-    public enum MoveMode
-    {
-        MOVING,
-        PAUSED,
-        READY,
-        DEFAULT // Adjust as needed
-    }
+    public enum MoveMode { MOVING, PAUSED, READY, DEFAULT }
 }

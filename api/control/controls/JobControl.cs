@@ -1,13 +1,15 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using FiveMApi.api.controls;
 using FiveMApi.api.server;
 using Newtonsoft.Json;
 
-namespace FiveMApi.api.controls
+namespace FiveMApi.api.control.controls
 {
     public class JobControl
     {
@@ -21,20 +23,11 @@ namespace FiveMApi.api.controls
         }
         
         // basic controls
-        public async Task<bool> PausePrintJob()
-        {
-            return await _control.SendJobControlCmd("pause");
-        }
+        public async Task<bool> PausePrintJob() { return await _control.SendJobControlCmd("pause"); }
 
-        public async Task<bool> ResumePrintJob()
-        {
-            return await _control.SendJobControlCmd("continue");
-        }
+        public async Task<bool> ResumePrintJob() { return await _control.SendJobControlCmd("continue"); }
 
-        public async Task<bool> CancelPrintJob()
-        {
-            return await _control.SendJobControlCmd("cancel");
-        }
+        public async Task<bool> CancelPrintJob() { return await _control.SendJobControlCmd("cancel"); }
         
         
         /// <summary>
@@ -80,7 +73,7 @@ namespace FiveMApi.api.controls
                 catch (Exception e)
                 {
                     _client.HttpClient.DefaultRequestHeaders.ExpectContinue = false;
-                    Console.WriteLine($"UploadFile error: {e.Message}\n{e.StackTrace}");
+                    Debug.WriteLine($"UploadFile error: {e.Message}\n{e.StackTrace}");
                     _client.HttpClientSemaphore.Release();
                     return false;
                 }
@@ -113,7 +106,7 @@ namespace FiveMApi.api.controls
             }
             catch (Exception e)
             {
-                Console.WriteLine($"PrintGcodeFile error: {e.Message}\n{e.StackTrace}");
+                Debug.WriteLine($"PrintGcodeFile error: {e.Message}\n{e.StackTrace}");
                 _client.HttpClientSemaphore.Release();
                 return false;
             }

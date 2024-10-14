@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Drawing;
 using System.Threading;
+using FiveMApi.api.control.controls;
 using FiveMApi.api.controls;
 using FiveMApi.api.server;
 using FiveMApi.tcpapi;

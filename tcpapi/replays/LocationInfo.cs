@@ -4,15 +4,11 @@ using System.Diagnostics;
 namespace FiveMApi.tcpapi.replays
 {
     public class LocationInfo
-    { // Represent data received from an M114 command
+    {
         public string X { get; set; }
         public string Y { get; set; }
         public string Z { get; set; }
-
         
-        /**
-         * Create a LocationInfo instance from an M114 command replay
-         */
         public LocationInfo FromReplay(string replay)
         {
             try
@@ -31,8 +27,7 @@ namespace FiveMApi.tcpapi.replays
                 return null;
             }
         }
-
-
+        
         public override string ToString()
         {
             return "X: " + X + " Y: " + Y + " Z: " + Z;

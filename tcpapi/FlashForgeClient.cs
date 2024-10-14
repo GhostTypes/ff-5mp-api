@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using FiveMApi.api.filament;
 using FiveMApi.tcpapi.client;
@@ -8,8 +9,6 @@ namespace FiveMApi.tcpapi
 {
     public class FlashForgeClient : FlashForgeTcpClient
     {
-
-
         private readonly GCodeController _control;
         
         public FlashForgeClient(string hostname) : base(hostname)
@@ -17,16 +16,9 @@ namespace FiveMApi.tcpapi
             _control = new GCodeController(this);
         }
 
-        public string GetIp()
-        {
-            return hostname;
-        }
-        
-        public async void Shutdown()
-        {
-            await SendRawCmd(GCodes.CmdLogout);
-            Dispose();
-        }
+        public string GetIp() { return hostname; }
+
+        internal GCodeController GCode() { return _control; } // helper
         
         public async Task<bool> InitControl()
         {
@@ -82,15 +74,9 @@ namespace FiveMApi.tcpapi
             return await Extrude(300); // purge old filament
         }
 
-        private async Task<bool> PrimeNozzle()
-        {
-            return await Extrude(125);
-        }
+        private async Task<bool> PrimeNozzle() { return await Extrude(125); }
         
-        public async Task<bool> LoadFilament()
-        {
-            return await Extrude(250);
-        }
+        public async Task<bool> LoadFilament() { return await Extrude(250); }
 
         public async Task<bool> FinishFilamentLoad()
         {
@@ -111,7 +97,7 @@ namespace FiveMApi.tcpapi
             }
             catch (Exception ex)
             {  
-                Console.WriteLine($"Exception sending cmd: {cmd} : {ex}");
+                Debug.WriteLine($"SendCmdOk exception sending cmd: {cmd} : {ex}");
                 return false;
             }
             return false;
@@ -119,49 +105,16 @@ namespace FiveMApi.tcpapi
 
         public async Task<string> SendRawCmd(string cmd)
         {
-            var result = await SendRawGCodeCmd(cmd);
-            return result;
-        }
-        
-        private async Task<string> SendRawGCodeCmd(string cmd)
-        {
             if (!cmd.Contains("M661")) return await SendCommandAsync(cmd);
             var list = await GetFileListAsync();
             return string.Join("\n", list);
         }
         
-
-        public async Task<PrinterInfo> GetPrinterInfo()
-        {
-            return new PrinterInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoStatus));
-        }
-
-        public async Task<TempInfo> GetTempInfo()
-        {
-            return new TempInfo().FromReplay(await SendCommandAsync(GCodes.CmdTemp));
-        }
-        
-
-        public async Task<EndstopStatus> GetEndstopInfo()
-        {
-            return new EndstopStatus().FromReplay(await SendCommandAsync(GCodes.CmdEndstopInfo));
-        }
-
-        public async Task<PrintStatus> GetPrintStatus()
-        {
-            return new PrintStatus().FromReplay(await SendCommandAsync(GCodes.CmdPrintStatus));
-        }
-
-        public async Task<LocationInfo> GetLocationInfo()
-        {
-            return new LocationInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoXyzab));
-        }
-
-        public async Task<bool> Validate()
-        {
-            var info = await GetPrinterInfo();
-            return info != null;
-        }
-
+        // Replay getters
+        public async Task<PrinterInfo> GetPrinterInfo() { return new PrinterInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoStatus)); }
+        public async Task<TempInfo> GetTempInfo() { return new TempInfo().FromReplay(await SendCommandAsync(GCodes.CmdTemp)); }
+        public async Task<EndstopStatus> GetEndstopInfo() { return new EndstopStatus().FromReplay(await SendCommandAsync(GCodes.CmdEndstopInfo)); }
+        public async Task<PrintStatus> GetPrintStatus() { return new PrintStatus().FromReplay(await SendCommandAsync(GCodes.CmdPrintStatus)); }
+        public async Task<LocationInfo> GetLocationInfo() { return new LocationInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoXyzab)); }
     }
 }
