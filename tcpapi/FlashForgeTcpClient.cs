@@ -38,15 +38,11 @@ namespace FiveMApi.tcpapi
 
         private CancellationTokenSource _keepAliveCancellationTokenSource;
 
-        private int keepAliveErrors;
+        private int _keepAliveErrors;
 
         public void StartKeepAlive()
         {
-            if (_keepAliveCancellationTokenSource != null)
-            {
-                // Keep-alive task is already running
-                return;
-            }
+            if (_keepAliveCancellationTokenSource != null) return; // already running
 
             _keepAliveCancellationTokenSource = new CancellationTokenSource();
             var token = _keepAliveCancellationTokenSource.Token;
@@ -61,24 +57,21 @@ namespace FiveMApi.tcpapi
                         if (await SendCommandAsync("~M27") == null)
                         {
                             // keep alive failed, connection error/timeout etc
-                            keepAliveErrors++; // keep track of errors
-                            Debug.WriteLine($"Current keep alive failure: {keepAliveErrors}");
+                            _keepAliveErrors++; // keep track of errors
+                            Debug.WriteLine($"Current keep alive failure: {_keepAliveErrors}");
                             break;
                         }
 
-                        if (keepAliveErrors > 0) keepAliveErrors--; // move back to 0 errors with each "good" keep-alive
+                        if (_keepAliveErrors > 0) _keepAliveErrors--; // move back to 0 errors with each "good" keep-alive
                         // increase keep alive timeout based on error count
                         // in normal situations even with a meh wifi speed/router, 5000ms is (should be) plenty of time
                         // other API/UI etc traffic may also affect this/vice versa. still working out the kinks
                         // the printer also seems to get "overloaded" sometimes when actively printing, but haven't narrowed it down
                         // to anything constant
-                        await Task.Delay(5000 + keepAliveErrors * 1000, token);
+                        await Task.Delay(5000 + _keepAliveErrors * 1000, token);
                     }
                 }
-                catch (TaskCanceledException)
-                {
-                    // Task was canceled, no action needed
-                }
+                catch (TaskCanceledException) { }
                 catch (Exception ex)
                 {
                     Debug.WriteLine("KeepAlive encountered an exception: " + ex.Message);
@@ -98,9 +91,18 @@ namespace FiveMApi.tcpapi
 
         private readonly SemaphoreSlim _socketSemaphore = new SemaphoreSlim(1, 1);
 
+        public async Task<bool> IsSocketBusy()
+        {
+            var isBusy = !await _socketSemaphore.WaitAsync(0);
+            if (isBusy) return true;
+            _socketSemaphore.Release(); // If acquired, release the semaphore
+            return false;
+        }
+        
         public async Task<string> SendCommandAsync(string cmd)
         {
             await _socketSemaphore.WaitAsync();
+            
             Debug.WriteLine("sendCommand: " + cmd);
             try
             {
@@ -141,10 +143,11 @@ namespace FiveMApi.tcpapi
             }
         }
 
-        private const string LineNPattern = @"N\d{4,}\sok";
-        private static readonly Regex LineNRegex = new Regex(LineNPattern);
+        // Legacy API file upload , not used for anything currently
+        //private const string LineNPattern = @"N\d{4,}\sok";
+        //private static readonly Regex LineNRegex = new Regex(LineNPattern);
 
-        public async Task<bool> SendRawDataAsync(List<byte[]> rawData)
+        /**public async Task<bool> SendRawDataAsync(List<byte[]> rawData)
         {
             try
             {
@@ -179,7 +182,7 @@ namespace FiveMApi.tcpapi
             }
 
             return true;
-        }
+        }**/
 
         private void CheckSocket()
         {
@@ -234,19 +237,16 @@ namespace FiveMApi.tcpapi
             var answer = new List<byte>();
             try
             {
-                if (_networkStream == null)
-                    _networkStream = new NetworkStream(socket);
-
+                CheckStream();
+                
                 var buffer = new byte[4096];
-                var timeoutMs = 5000; // Adjusted timeout to 5 seconds
-                var timeoutCts = new CancellationTokenSource(timeoutMs);
+                var timeoutCts = new CancellationTokenSource(5000);
 
                 while (true)
                 {
                     int bytesRead;
                     try
                     {
-                        // Read data with the specified timeout
                         var readTask = _networkStream.ReadAsync(buffer, 0, buffer.Length, timeoutCts.Token);
                         bytesRead = await readTask;
                     }
@@ -256,29 +256,15 @@ namespace FiveMApi.tcpapi
                         break;
                     }
 
-                    if (bytesRead == 0)
-                    {
-                        // No more data available
-                        break;
-                    }
+                    if (bytesRead == 0) break; // No more data
 
                     answer.AddRange(buffer.Take(bytesRead));
-
-                    // Convert the data so far to string using UTF8 encoding
                     var dataSoFar = Encoding.ASCII.GetString(answer.ToArray());
-
-                    // Check for end of response
-                    if ((cmd.Equals("~M661") && dataSoFar.Contains("~M662")) ||
-                        (!cmd.Equals("~M661") && dataSoFar.Contains("ok")))
-                    {
-                        break;
-                    }
-
-                    // If no more data is available and the end marker hasn't been found, exit the loop
-                    if (socket.Available == 0)
-                    {
-                        break;
-                    }
+                    
+                    if ((cmd.Equals("~M661") && dataSoFar.Contains("~M662")) // Check for end of response
+                        || (!cmd.Equals("~M661") && dataSoFar.Contains("ok"))) break;
+                    
+                    if (socket.Available == 0) break; // No more data (didn't find end of response)
                 }
             }
             catch (IOException e)
@@ -303,52 +289,27 @@ namespace FiveMApi.tcpapi
         public async Task<List<string>> GetFileListAsync()
         {
             var response = await SendCommandAsync("~M661");
-            //ResetSocket();
-            //await Task.Delay(500);
-            //CheckSocket(); // reconnect socket + re-start keep-alive
-            //await Task.Delay(250);
-            //await SendCommandAsync("~M601 S1");
-            //await Task.Delay(250);
-
             if (!string.IsNullOrEmpty(response)) return ParseFileListResponse(response);
             Debug.WriteLine("No response received for M661 command.");
             return null;
         }
 
-        private List<string> ParseFileListResponse(string response)
+        private static List<string> ParseFileListResponse(string response)
         {
-            // Use regular expressions to match file entries if the data format is consistent
-            var fileList = new List<string>();
-
-            // Split the response by the file separator
             var entries = response.Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries);
-
-            foreach (var entry in entries)
-            {
-                var trimmedEntry = entry.Trim();
-                var dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase);
-                if (dataIndex >= 0)
-                {
-                    var filePath = trimmedEntry.Substring(dataIndex);
-                    // Remove non-printable characters
-                    filePath = Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty);
-                    if (!string.IsNullOrEmpty(filePath))
-                    {
-                        fileList.Add(filePath.Replace("/data/", ""));
-                    }
-                }
-            }
-
-            return fileList;
+            return (from entry in entries select entry.Trim() into trimmedEntry 
+                let dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase) 
+                where dataIndex >= 0 select trimmedEntry.Substring(dataIndex) into filePath 
+                select Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty) 
+                into filePath where !string.IsNullOrEmpty(filePath) 
+                select filePath.Replace("/data/", "")).ToList();
         }
-
-
-
+        
         private async Task<string> ReceiveSingleLineReplayAsync()
         {
             try
             {
-                if (_networkStream == null) _networkStream = new NetworkStream(socket);
+                CheckStream();
                 var reader = new StreamReader(_networkStream, Encoding.ASCII);
                 var result = await reader.ReadLineAsync();
                 if (result != null)
@@ -358,17 +319,18 @@ namespace FiveMApi.tcpapi
                     return result;
                 }
 
-                Debug.WriteLine("Empty/null single-line replay received :(");
+                Debug.WriteLine("ReceiveSingleLineReplayAsync : Empty/Null response");
                 return null;
             }
             catch (IOException e)
             {
-                throw new Exception("Error while building or reading input stream.", e);
+                throw new Exception("ReceiveSingleLineReplayAsync : Error while building or reading input stream.", e);
             }
         }
 
         public void Dispose()
         {
+            // keep alive is stopped by FiveMClient
             try
             {
                 Debug.WriteLine("TcpPrinterClient closing socket");

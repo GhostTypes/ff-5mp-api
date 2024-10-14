@@ -39,6 +39,14 @@ namespace FiveMApi.api
         
         public readonly SemaphoreSlim HttpClientSemaphore = new SemaphoreSlim(1, 1);
 
+        public async Task<bool> IsHttpClientBusy()
+        {
+            var isBusy = !await HttpClientSemaphore.WaitAsync(0);
+            if (isBusy) return true;
+            HttpClientSemaphore.Release(); // If acquired, release the semaphore
+            return false;
+        }
+
         public void ReleaseHttpClient()
         {
             HttpClientSemaphore.Release();
@@ -121,7 +129,7 @@ namespace FiveMApi.api
         
         public async Task<bool> SendProductCommand()
         {
-            Console.WriteLine("SendProductCommand()");
+            Debug.WriteLine("SendProductCommand()");
             await HttpClientSemaphore.WaitAsync();
             var payload = new
             {
@@ -132,13 +140,13 @@ namespace FiveMApi.api
             {
                 var response = await HttpClient.PostAsync(GetEndpoint(Endpoints.Product), new StringContent(JsonConvert.SerializeObject(payload), Encoding.UTF8, "application/json"));
                 var data = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Product Command reply: {data}");
+                Debug.WriteLine($"Product Command reply: {data}");
                 HttpClientSemaphore.Release();
                 return response.IsSuccessStatusCode;
             }
             catch (Exception e)
             {
-                Console.WriteLine($"SendProductCommand failure: {e.Message}\n{e.StackTrace}");
+                Debug.WriteLine($"SendProductCommand failure: {e.Message}\n{e.StackTrace}");
                 HttpClientSemaphore.Release();
                 return false;
             }

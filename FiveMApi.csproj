@@ -98,6 +98,8 @@
         <Compile Include="api\server\Endpoints.cs" />
         <Compile Include="Program.cs" />
         <Compile Include="Properties\AssemblyInfo.cs" />
+        <Compile Include="tcpapi\client\GCodeController.cs" />
+        <Compile Include="tcpapi\client\GCodes.cs" />
         <Compile Include="tcpapi\FlashForgeClient.cs" />
         <Compile Include="tcpapi\FlashForgeTcpClient.cs" />
         <Compile Include="tcpapi\replays\EndstopStatus.cs" />

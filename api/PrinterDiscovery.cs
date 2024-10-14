@@ -31,12 +31,12 @@ namespace FiveMApi.api
         {
             var printers = new List<FlashForgePrinter>();
             var broadcastAddresses = GetBroadcastAddresses().ToList();
-            int attempt = 0;
+            var attempt = 0;
 
             while (attempt < maxRetries)
             {
                 attempt++;
-                Console.WriteLine($"Discovery attempt {attempt}...");
+                Debug.WriteLine($"Broadcasting printer discovery (attempt {attempt})...");
 
                 using (var udpClient = new UdpClient())
                 {
@@ -53,7 +53,7 @@ namespace FiveMApi.api
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"Failed to send to {broadcastAddress}: {ex.Message}");
+                            Debug.WriteLine($"Failed to send to {broadcastAddress}: {ex.Message}");
                         }
                     }
 
@@ -63,11 +63,11 @@ namespace FiveMApi.api
                     }
                     catch (OperationCanceledException)
                     {
-                        // timeout
+                        Debug.WriteLine("ReceivePrinterResponses timed out");
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"An error occurred: {ex.Message}");
+                        Debug.WriteLine($"ReceivePrinterResponses error: {ex.Message}");
                     }
                 }
 
@@ -75,16 +75,15 @@ namespace FiveMApi.api
                 {
                     break; // Printers found, exit the retry loop
                 }
-                else if (attempt < maxRetries)
-                {
-                    Console.WriteLine("No printers found, retrying...");
-                    await Task.Delay(1000); // Optional: wait before retrying
-                }
+
+                if (attempt >= maxRetries) continue;
+                Debug.WriteLine("No printers found, retrying...");
+                await Task.Delay(1000); // Optional: wait before retrying
             }
 
             if (printers.Count == 0)
             {
-                Console.WriteLine("No printers discovered after maximum retries.");
+                Debug.WriteLine("No printers discovered after maximum retries.");
             }
 
             return printers;
@@ -125,14 +124,14 @@ namespace FiveMApi.api
                         {
                             break; // total timeout
                         }
-                        catch (SocketException)
+                        catch (SocketException ex)
                         {
-                            // todo impl
+                            Debug.WriteLine("Socket exception receiving printer discovery response: " + ex.Message);
                             break;
                         }
                         catch (Exception ex)
                         {
-                            Console.WriteLine($"An error occurred while receiving responses: {ex.Message}");
+                            Debug.WriteLine($"ReceivePrinterResponses error occurred while receiving responses: {ex.Message}");
                             break;
                         }
                     }
@@ -147,12 +146,16 @@ namespace FiveMApi.api
         private static FlashForgePrinter ParsePrinterResponse(byte[] response, IPAddress ipAddress)
         {
             Debug.WriteLine("Printer discovery response from: " + ipAddress);
-            if (response == null || response.Length < 0xC4) return null;
+            if (response == null || response.Length < 0xC4)
+            {
+                Debug.WriteLine("Invalid response, discarded.");
+                return null;
+            }
 
             var name = Encoding.ASCII.GetString(response, 0, 32).TrimEnd('\0'); // Printer name (offset 0x00)
             var serialNumber = Encoding.ASCII.GetString(response, 0x92, 32).TrimEnd('\0'); // Serial number (offset 0x92)
             
-            Debug.WriteLine("Valid printer: " + name + "(" + serialNumber + ")");
+            Debug.WriteLine("Valid printer: " + name + " (" + serialNumber + ")");
             
             return new FlashForgePrinter
             {

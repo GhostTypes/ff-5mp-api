@@ -1,48 +1,20 @@
 ﻿using System;
-using System.Diagnostics;
-using System.IO;
-using System.Threading;
 using System.Threading.Tasks;
 using FiveMApi.api.filament;
+using FiveMApi.tcpapi.client;
 using FiveMApi.tcpapi.replays;
 
 namespace FiveMApi.tcpapi
 {
     public class FlashForgeClient : FlashForgeTcpClient
     {
-        public readonly string CmdLogin = "~M601 S1";
-        public readonly string CmdLogout = "~M602";
 
-        private const string CmdPrintStatus = "~M27";
-        private const string CmdEndstopInfo = "~M119";
-        private const string CmdInfoStatus = "~M115";
-        private const string CmdInfoXyzab = "~M114";
-        private const string CmdTemp = "~M105";
 
-        //private const string CmdLedOn = "~M146 r255 g255 b255 F0";
-        //private const string CmdLedOff = "~M146 r0 g0 b0 F0";
-
-        //private const string CmdPrintStart = "~M23 0:/user/%%filename%%\r";
-        //private const string CmdPrintStop = "~M26";
-
-        //public readonly string CmdStartTransfer = "~M28 %%size%% 0:/user/%%filename%%\r";
-        //private const string CmdSaveFile = "~M29\r";
-
-        private const string CmdRunoutSensorOn = "~M405";
-        private const string CmdRunoutSensorOff = "~M406";
-
-        private const string CmdListLocalFiles = "~M661";
-        private const string CmdGetThumbnail = "~M662";
-
-        private const string TakePicture = "~M240";
-
-        private const string CmdHomeAxes = "~G28";
-        
-        
+        private readonly GCodeController _control;
         
         public FlashForgeClient(string hostname) : base(hostname)
         {
-            
+            _control = new GCodeController(this);
         }
 
         public string GetIp()
@@ -52,19 +24,16 @@ namespace FiveMApi.tcpapi
         
         public async void Shutdown()
         {
-            await SendRawCmd(CmdLogout);
+            await SendRawCmd(GCodes.CmdLogout);
             Dispose();
         }
-
-        
         
         public async Task<bool> InitControl()
         {
-            //await SendCommandAsync(CmdLogin);
             var tries = 0;
             while (tries <= 5)
             {
-                var result = await SendRawCmd(CmdLogin);
+                var result = await SendRawCmd(GCodes.CmdLogin);
                 if (!result.Contains("Control failed.") && result.Contains("ok"))
                 {
                     StartKeepAlive(); // socket "times out" printer-side after a few seconds of no incoming commands..
@@ -72,95 +41,67 @@ namespace FiveMApi.tcpapi
                 }
                 tries++;
                 // ensures no errors from previous connections that were improperly closed
-                await SendRawCmd(CmdLogout);
+                await SendRawCmd(GCodes.CmdLogout);
                 await Task.Delay(500);
             }
 
             return false;
         }
         
-        public async Task<bool> HomeAxes()
-        {
-            try
-            {
-                await SendRawCmd(CmdHomeAxes);
-                return true;
-            }
-            catch (Exception ignored)
-            {
-                return false;
-            }
-        }
+        public async Task<bool> HomeAxes() { return await _control.Home(); }
 
-        public async Task<bool> RapidHome()
-        {
-            if (!await SendCmdOk("~G90")) return false;
-            if (!await SendCmdOk("~G1 X105 ZY105 Z220 F9000")) return false;
-            return await HomeAxes();
-        }
+        public async Task<bool> RapidHome() { return await _control.RapidHome(); }
 
-        public async Task<bool> TurnRunoutSensorOn()
-        {
-            return await SendCmdOk(CmdRunoutSensorOn);
-        }
+        public async Task<bool> TurnRunoutSensorOn() { return await SendCmdOk(GCodes.CmdRunoutSensorOn); }
 
-        public async Task<bool> TurnRunoutSensorOff()
-        {
-            return await SendCmdOk(CmdRunoutSensorOff);
-        }
+        public async Task<bool> TurnRunoutSensorOff() { return await SendCmdOk(GCodes.CmdRunoutSensorOff); }
 
-        public async Task<bool> SetExtruderTemp(int temp)
-        {
-            return await SendCmdOk($"~M104 S{temp}");
-        }
+        public async Task<bool> SetExtruderTemp(int temp, bool waitFor = false) { return await _control.SetExtruderTemp(temp, waitFor); }
 
-        public async Task<bool> CancelExtruderTemp()
-        {
-            return await SendCmdOk("~M104 S0");
-        }
+        public async Task<bool> CancelExtruderTemp() { return await _control.CancelExtruderTemp(); }
 
-        public async Task<bool> SetBedTemp(int temp)
-        {
-            return await SendCmdOk($"~M140 S{temp}");
-        }
+        public async Task<bool> SetBedTemp(int temp, bool waitFor = false) { return await _control.SetBedTemp(temp, waitFor); }
 
-        public async Task<bool> CancelBedTemp()
-        {
-            return await SendCmdOk("~M140 S0");
-        }
+        public async Task<bool> CancelBedTemp(bool waitForCool = false) { return await _control.CancelBedTemp(waitForCool); }
 
-        public async Task<bool> WaitForBedTemp(int temp)
-        {
-            return await SendCmdOk($"~M190 S{temp}"); // todo make sure this works as expected
-            // it might just return ok and wait printer-side..
-        }
+        public async Task<bool> Extrude(int length, int feedrate = 450) { return await SendCmdOk($"~G1 E{length} F{feedrate}"); }
+
+        public async Task<bool> MoveExtruder(int x, int y, int feedrate) { return await SendCmdOk($"~G1 X{x} Y{y} F{feedrate}"); }
+        
+        public async Task<bool> Move(int x, int y, int z, int feedrate) { return await SendCmdOk($"~G1 X{x} Y{y} Z{z} F{feedrate}"); }
         
         
         // filament load/unload code
         public async Task<bool> PrepareFilamentLoad(Filament filament)
         {
             if (!await CancelExtruderTemp()) return false;
-            if (!await SendCmdOk("~G90")) return false; // absolute mode
+            if (!await SendCmdOk("~G90")) return false; // absolute mode ok
             if (!await HomeAxes()) return false;
-            if (!await SendCmdOk("~G1 X0 Y0 F9000")) return false; // move extruder to the middle
-            if (!await SetExtruderTemp(filament.LoadTemp)) return false; // heat extruder
-            return await SendCmdOk("~G1 E25 F450"); // purge old filament
+            if (!await MoveExtruder(0, 0, 9000)) return false;
+            if (!await SetExtruderTemp(filament.LoadTemp, true)) return false; // heat extruder (and wait for it)
+            return await Extrude(300); // purge old filament
         }
 
+        private async Task<bool> PrimeNozzle()
+        {
+            return await Extrude(125);
+        }
+        
         public async Task<bool> LoadFilament()
         {
-            return await SendCmdOk("~G1 E125 F450");
+            return await Extrude(250);
         }
 
         public async Task<bool> FinishFilamentLoad()
         {
-            await Task.Delay(5); // let nozzle cool a bit
             if (!await CancelExtruderTemp()) return false;
+            await Task.Delay(5000);
+            //await WaitForExtruderTemp(180);
             return await HomeAxes();
         }
-        
-        
-        private async Task<bool> SendCmdOk(string cmd)
+
+        // base command sending
+        internal async Task<bool> SendCmdOk(string cmd)
         {
 
             try
@@ -192,28 +133,28 @@ namespace FiveMApi.tcpapi
 
         public async Task<PrinterInfo> GetPrinterInfo()
         {
-            return new PrinterInfo().FromReplay(await SendCommandAsync(CmdInfoStatus));
+            return new PrinterInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoStatus));
         }
 
         public async Task<TempInfo> GetTempInfo()
         {
-            return new TempInfo().FromReplay(await SendCommandAsync(CmdTemp));
+            return new TempInfo().FromReplay(await SendCommandAsync(GCodes.CmdTemp));
         }
         
 
         public async Task<EndstopStatus> GetEndstopInfo()
         {
-            return new EndstopStatus().FromReplay(await SendCommandAsync(CmdEndstopInfo));
+            return new EndstopStatus().FromReplay(await SendCommandAsync(GCodes.CmdEndstopInfo));
         }
 
         public async Task<PrintStatus> GetPrintStatus()
         {
-            return new PrintStatus().FromReplay(await SendCommandAsync(CmdPrintStatus));
+            return new PrintStatus().FromReplay(await SendCommandAsync(GCodes.CmdPrintStatus));
         }
 
         public async Task<LocationInfo> GetLocationInfo()
         {
-            return new LocationInfo().FromReplay(await SendCommandAsync(CmdInfoXyzab));
+            return new LocationInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoXyzab));
         }
 
         public async Task<bool> Validate()
@@ -222,10 +163,5 @@ namespace FiveMApi.tcpapi
             return info != null;
         }
 
-        
-        //public async void StopPrinting()
-        //{
-        //    await SendCommandAsync(CmdPrintStop);
-        //}
     }
 }

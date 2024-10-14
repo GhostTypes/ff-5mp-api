@@ -23,11 +23,13 @@ namespace FiveMApi.api.controls
 
         public async Task<bool> HomeAxes()
         {
+            //if (await _tcpClient.IsSocketBusy()) return false;
             return await _tcpClient.HomeAxes();
         }
 
         public async Task<bool> HomeAxesRapid()
         {
+            //if (await _tcpClient.IsSocketBusy()) return false;
             return await _tcpClient.RapidHome();
         }
 
