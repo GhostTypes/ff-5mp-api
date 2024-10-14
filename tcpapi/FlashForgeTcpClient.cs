@@ -35,10 +35,11 @@ namespace FiveMApi.tcpapi
                 Debug.WriteLine("TcpPrinterClient failed to init!!!");
             }
         }
-        
+
         private CancellationTokenSource _keepAliveCancellationTokenSource;
-        
+
         private int keepAliveErrors;
+
         public void StartKeepAlive()
         {
             if (_keepAliveCancellationTokenSource != null)
@@ -58,7 +59,8 @@ namespace FiveMApi.tcpapi
                     {
                         Debug.WriteLine("KeepAlive");
                         if (await SendCommandAsync("~M27") == null)
-                        { // keep alive failed, connection error/timeout etc
+                        {
+                            // keep alive failed, connection error/timeout etc
                             keepAliveErrors++; // keep track of errors
                             Debug.WriteLine($"Current keep alive failure: {keepAliveErrors}");
                             break;
@@ -84,21 +86,18 @@ namespace FiveMApi.tcpapi
             }, token);
         }
 
-        public void StopKeepAlive()
+        public void StopKeepAlive(bool logout = false)
         {
             if (_keepAliveCancellationTokenSource == null) return;
             _keepAliveCancellationTokenSource.Cancel();
             _keepAliveCancellationTokenSource.Dispose();
             _keepAliveCancellationTokenSource = null;
             Debug.WriteLine("Keep-alive stopped.");
-            Task.Run(async () =>
-            {
-                await SendCommandAsync("~M602");
-            });
+            if (logout) Task.Run(async () => { await SendCommandAsync("~M602"); });
         }
-        
+
         private readonly SemaphoreSlim _socketSemaphore = new SemaphoreSlim(1, 1);
-        
+
         public async Task<string> SendCommandAsync(string cmd)
         {
             await _socketSemaphore.WaitAsync();
@@ -232,90 +231,117 @@ namespace FiveMApi.tcpapi
         private async Task<string> ReceiveMultiLineReplayAsync(string cmd)
         {
             Debug.WriteLine("ReceiveMultiLineReplayAsync()");
-            var answer = new StringBuilder();
+            var answer = new List<byte>();
             try
             {
-                if (_networkStream == null) _networkStream = new NetworkStream(socket);
-                var reader = new StreamReader(_networkStream, Encoding.ASCII);
+                if (_networkStream == null)
+                    _networkStream = new NetworkStream(socket);
 
-                var buffer = new char[1024];
-                var shouldContinue = true;
-                
-                // some cursed code below.
-                try
+                var buffer = new byte[4096];
+                var timeoutMs = 5000; // Adjusted timeout to 5 seconds
+                var timeoutCts = new CancellationTokenSource(timeoutMs);
+
+                while (true)
                 {
-                    while (shouldContinue)
+                    int bytesRead;
+                    try
                     {
-                        var readTask = reader.ReadAsync(buffer, 0, buffer.Length);
-                        var completedTask = await Task.WhenAny(readTask, Task.Delay(1500));
-
-                        if (completedTask == readTask)
-                        {
-                            var bytesRead = readTask.Result;
-                            if (bytesRead == 0) break;
-
-                            var chunk = new string(buffer, 0, bytesRead);
-                            Debug.WriteLine(chunk);
-                            answer.Append(chunk);
-
-                            // End of file list (starts streaming pngs from legacy api)
-                            if (chunk.Contains("~M662") && cmd.Equals("~M661") || !cmd.Equals("~M661") && chunk.Contains("ok"))
-                            {
-                                shouldContinue = false;
-                            }
-                        }
-                        else
-                        {
-                            // Timeout reached
-                            Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
-                            return null;
-                        }
+                        // Read data with the specified timeout
+                        var readTask = _networkStream.ReadAsync(buffer, 0, buffer.Length, timeoutCts.Token);
+                        bytesRead = await readTask;
                     }
-                }
-                catch (OperationCanceledException)
-                {
-                    Debug.WriteLine("ReceiveMultiLineReplayAsync operation was canceled.");
+                    catch (OperationCanceledException)
+                    {
+                        Debug.WriteLine("ReceiveMultiLineReplayAsync timed out.");
+                        break;
+                    }
+
+                    if (bytesRead == 0)
+                    {
+                        // No more data available
+                        break;
+                    }
+
+                    answer.AddRange(buffer.Take(bytesRead));
+
+                    // Convert the data so far to string using UTF8 encoding
+                    var dataSoFar = Encoding.ASCII.GetString(answer.ToArray());
+
+                    // Check for end of response
+                    if ((cmd.Equals("~M661") && dataSoFar.Contains("~M662")) ||
+                        (!cmd.Equals("~M661") && dataSoFar.Contains("ok")))
+                    {
+                        break;
+                    }
+
+                    // If no more data is available and the end marker hasn't been found, exit the loop
+                    if (socket.Available == 0)
+                    {
+                        break;
+                    }
                 }
             }
             catch (IOException e)
             {
-                Debug.WriteLine("Error receiving multi-line command replay");
+                Debug.WriteLine("Error receiving multi-line command reply");
                 Debug.WriteLine(e.StackTrace);
                 return null;
             }
 
-            var result = answer.ToString();
+            var result = Encoding.UTF8.GetString(answer.ToArray());
             if (string.IsNullOrEmpty(result))
-            { // final sanity check (should never be reached..)
-                Debug.WriteLine("ReceiveMultiLineReplayAsync null/empty command reply");
+            {
+                Debug.WriteLine("ReceiveMultiLineReplayAsync received an empty response.");
                 return null;
             }
+
             Debug.WriteLine("Multi-line replay received:\n" + result);
             return result;
         }
 
+
         public async Task<List<string>> GetFileListAsync()
         {
-
             var response = await SendCommandAsync("~M661");
-            ResetSocket();
-            await Task.Delay(500);
-            CheckSocket(); // reconnect socket + re-start keep-alive
-            await Task.Delay(250);
-            await SendCommandAsync("~M601 S1");
-            await Task.Delay(250);
+            //ResetSocket();
+            //await Task.Delay(500);
+            //CheckSocket(); // reconnect socket + re-start keep-alive
+            //await Task.Delay(250);
+            //await SendCommandAsync("~M601 S1");
+            //await Task.Delay(250);
 
             if (!string.IsNullOrEmpty(response)) return ParseFileListResponse(response);
             Debug.WriteLine("No response received for M661 command.");
             return null;
-
         }
 
         private List<string> ParseFileListResponse(string response)
         {
-            var entries = response.Split(new[] { "::??" }, StringSplitOptions.RemoveEmptyEntries);
-            return (from entry in entries select entry.Trim() into trimmedEntry let dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase) where dataIndex >= 0 select trimmedEntry.Substring(dataIndex) into filePath select Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty) into filePath where !string.IsNullOrEmpty(filePath) select filePath.Replace("/data/", "")).ToList();
+            // Use regular expressions to match file entries if the data format is consistent
+            var fileList = new List<string>();
+
+            // Split the response by the file separator
+            var entries = response.Split(new[] { "::" }, StringSplitOptions.RemoveEmptyEntries);
+
+            foreach (var entry in entries)
+            {
+                var trimmedEntry = entry.Trim();
+                var dataIndex = trimmedEntry.IndexOf("/data/", StringComparison.OrdinalIgnoreCase);
+                if (dataIndex >= 0)
+                {
+                    var filePath = trimmedEntry.Substring(dataIndex);
+                    // Remove non-printable characters
+                    filePath = Regex.Replace(filePath, @"[^\u0020-\u007E]", string.Empty);
+                    if (!string.IsNullOrEmpty(filePath))
+                    {
+                        fileList.Add(filePath.Replace("/data/", ""));
+                    }
+                }
+            }
+
+            return fileList;
         }
+
 
 
         private async Task<string> ReceiveSingleLineReplayAsync()
@@ -354,6 +380,5 @@ namespace FiveMApi.tcpapi
                 Console.WriteLine(e.Message);
             }
         }
-
     }
 }

@@ -27,42 +27,64 @@ namespace FiveMApi.api
     {
         private const int DiscoveryPort = 19000;
 
-        public async Task<List<FlashForgePrinter>> DiscoverPrintersAsync(int timeoutMs = 10000, int idleTimeoutMs = 1500)
+        public async Task<List<FlashForgePrinter>> DiscoverPrintersAsync(int timeoutMs = 10000, int idleTimeoutMs = 1500, int maxRetries = 3)
         {
             var printers = new List<FlashForgePrinter>();
             var broadcastAddresses = GetBroadcastAddresses().ToList();
+            int attempt = 0;
 
-            using (var udpClient = new UdpClient())
+            while (attempt < maxRetries)
             {
-                udpClient.EnableBroadcast = true;
-                var discoveryMessage = Encoding.ASCII.GetBytes("discover");
+                attempt++;
+                Console.WriteLine($"Discovery attempt {attempt}...");
 
-                // Send discovery message to all broadcast addresses
-                foreach (var broadcastAddress in broadcastAddresses)
+                using (var udpClient = new UdpClient())
                 {
+                    udpClient.EnableBroadcast = true;
+                    var discoveryMessage = Encoding.ASCII.GetBytes("discover");
+
+                    // Send discovery message to all broadcast addresses
+                    foreach (var broadcastAddress in broadcastAddresses)
+                    {
+                        try
+                        {
+                            Debug.WriteLine("Broadcasting printer discovery to: " + broadcastAddress.Address);
+                            await udpClient.SendAsync(discoveryMessage, discoveryMessage.Length, broadcastAddress);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"Failed to send to {broadcastAddress}: {ex.Message}");
+                        }
+                    }
+
                     try
                     {
-                        Debug.WriteLine("Broadcasting printer discovery to: " + broadcastAddress.Address);
-                        await udpClient.SendAsync(discoveryMessage, discoveryMessage.Length, broadcastAddress);
+                        await ReceivePrinterResponses(udpClient, printers, timeoutMs, idleTimeoutMs);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // timeout
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Failed to send to {broadcastAddress}: {ex.Message}");
+                        Console.WriteLine($"An error occurred: {ex.Message}");
                     }
                 }
 
-                try
+                if (printers.Count > 0)
                 {
-                    await ReceivePrinterResponses(udpClient, printers, timeoutMs, idleTimeoutMs);
+                    break; // Printers found, exit the retry loop
                 }
-                catch (OperationCanceledException)
+                else if (attempt < maxRetries)
                 {
-                    // timeout
+                    Console.WriteLine("No printers found, retrying...");
+                    await Task.Delay(1000); // Optional: wait before retrying
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"An error occurred: {ex.Message}");
-                }
+            }
+
+            if (printers.Count == 0)
+            {
+                Console.WriteLine("No printers discovered after maximum retries.");
             }
 
             return printers;

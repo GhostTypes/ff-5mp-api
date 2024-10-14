@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -75,13 +76,18 @@ namespace FiveMApi.api
 
         public async Task<bool> InitControl()
         {
-            if (!await SendProductCommand()) return false;
+            Debug.WriteLine("InitControl()");
+            if (!await SendProductCommand())
+            {
+                Debug.WriteLine("New API control failed!");
+                return false;
+            }
             return await TcpClient.InitControl();
         }
 
         public void Dispose()
         {
-            TcpClient.StopKeepAlive();
+            TcpClient.StopKeepAlive(true);
             TcpClient.Dispose();;
         }
 

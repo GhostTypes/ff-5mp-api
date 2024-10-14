@@ -13,10 +13,10 @@ namespace FiveMApi.tcpapi
         public readonly string CmdLogin = "~M601 S1";
         public readonly string CmdLogout = "~M602";
 
-        //private const string CmdPrintStatus = "~M27";
-        //private const string CmdEndstopInfo = "~M119";
+        private const string CmdPrintStatus = "~M27";
+        private const string CmdEndstopInfo = "~M119";
         private const string CmdInfoStatus = "~M115";
-        //private const string CmdInfoXyzab = "~M114";
+        private const string CmdInfoXyzab = "~M114";
         private const string CmdTemp = "~M105";
 
         //private const string CmdLedOn = "~M146 r255 g255 b255 F0";
@@ -71,6 +71,9 @@ namespace FiveMApi.tcpapi
                     return true;
                 }
                 tries++;
+                // ensures no errors from previous connections that were improperly closed
+                await SendRawCmd(CmdLogout);
+                await Task.Delay(500);
             }
 
             return false;
@@ -156,71 +159,6 @@ namespace FiveMApi.tcpapi
             return await HomeAxes();
         }
         
-    
-        // All of this is technically "legacy code" - for the api used with Flashprint
-        // This was mainly updated as the new api(s) (for use with Orca-FlashForge)
-        // don't seem to support sending G-Code commands, which is.. important lol
-        
-        
-        //public async Task<bool> TurnLightsOff()
-        //{
-        //    return await SendCmdOk(CmdLedOff);
-        //}
-
-        //public async Task<bool> TurnLightsOn()
-        //{
-        //    return await SendCmdOk(CmdLedOn);
-        //}
-        
-        /**
-         * Transfer & saves a gcode file to the printer, and starts printing it
-         */
-        /**public async Task<bool> StartPrint(string file)
-        {
-            if (!File.Exists(file)) return false; // this should never happen
-            if (!await TransferFile(file)) return false;
-            return await SendStartPrint(Path.GetFileName(file));
-        }**/
-
-        /**
-         * Transfers a gcode file to the printer's local storage
-         */
-        /**public async Task<bool> TransferFile(string file)
-        {
-            if (!File.Exists(file)) return false; // this should never happen
-            var name = Path.GetFileName(file);
-            try
-            {
-                var data = File.ReadAllBytes(file);
-                if (!await InitFileTransfer(name, data.Length)) return false;
-                var gcode = Utils.PrepareRawData(data);
-                if (!await SendRawDataAsync(gcode)) return false;
-                return await CompleteFileTransfer();
-            } catch (IOException ioEx)
-            {
-                Debug.WriteLine("Unable to start print with file (IOException) : " + file);
-                Debug.WriteLine(ioEx.StackTrace);
-                return false;
-            }
-        }**/
-
-        /**private async Task<bool> InitFileTransfer(string name, int length)
-        {
-            return await SendCmdOk(CmdPrintStart
-                .Replace("%%size%%", length.ToString()
-                .Replace("%%filename%%", name)));
-        }**/
-
-        /**private async Task<bool> CompleteFileTransfer()
-        {
-            return await SendCmdOk(CmdSaveFile);
-        }
-
-        private async Task<bool> SendStartPrint(string filename)
-        {
-            return await SendCmdOk(CmdPrintStart.Replace("%%filename%%", filename));
-        }**/
-        
         
         private async Task<bool> SendCmdOk(string cmd)
         {
@@ -263,20 +201,20 @@ namespace FiveMApi.tcpapi
         }
         
 
-        //public async Task<EndstopStatus> GetEndstopInfo()
-        //{
-       //     return new EndstopStatus().FromReplay(await SendCommandAsync(CmdEndstopInfo));
-        //}
+        public async Task<EndstopStatus> GetEndstopInfo()
+        {
+            return new EndstopStatus().FromReplay(await SendCommandAsync(CmdEndstopInfo));
+        }
 
-        //public async Task<PrintStatus> GetPrintStatus()
-        //{
-        //    return new PrintStatus().FromReplay(await SendCommandAsync(CmdPrintStatus));
-        //}
+        public async Task<PrintStatus> GetPrintStatus()
+        {
+            return new PrintStatus().FromReplay(await SendCommandAsync(CmdPrintStatus));
+        }
 
-        //public async Task<LocationInfo> GetLocationInfo()
-        //{
-        //    return new LocationInfo().FromReplay(await SendCommandAsync(CmdInfoXyzab));
-        //}
+        public async Task<LocationInfo> GetLocationInfo()
+        {
+            return new LocationInfo().FromReplay(await SendCommandAsync(CmdInfoXyzab));
+        }
 
         public async Task<bool> Validate()
         {
