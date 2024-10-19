@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using FiveMApi.api.filament;
 using FiveMApi.api.misc;
 using FiveMApi.api.server;
 using FiveMApi.tcpapi;
@@ -36,17 +37,23 @@ namespace FiveMApi.api.controls
 
         public async Task<bool> SetExternalFiltrationOn()
         {
-            return await SendFiltrationCommand(new FiltrationArgs(false, true));
+            if (_client.FiltrationControl) return await SendFiltrationCommand(new FiltrationArgs(false, true));
+            Debug.WriteLine("SetExternalFiltrationOn() error , filtration not equipped.");
+            return false;
         }
 
         public async Task<bool> SetInternalFiltrationOn()
         {
-            return await SendFiltrationCommand(new FiltrationArgs(true, false));
+            if (_client.FiltrationControl) return await SendFiltrationCommand(new FiltrationArgs(true, false));
+            Debug.WriteLine("SetInternalFiltrationOn() error , filtration not equipped.");
+            return false;
         }
 
         public async Task<bool> SetFiltrationOff()
         {
-            return await SendFiltrationCommand(new FiltrationArgs(false, false));
+            if (_client.FiltrationControl) return await SendFiltrationCommand(new FiltrationArgs(false, false));
+            Debug.WriteLine("SetFiltrationOff() error , filtration not equipped.");
+            return false;
         }
 
         public async Task<bool> SetSpeedOverride(int speed)
@@ -71,14 +78,19 @@ namespace FiveMApi.api.controls
 
         public async Task<bool> SetLedOn()
         {
-            return await SendControlCommand(Commands.LightControlCmd, new { status = "open" });
+            if (_client.LedControl) return await SendControlCommand(Commands.LightControlCmd, new { status = "open" });
+            Debug.WriteLine("SetLedOn() error, LEDs not equipped.");
+            return false;
         }
 
         public async Task<bool> SetLedOff()
         {
-            return await SendControlCommand(Commands.LightControlCmd, new { status = "close" });
+            if (_client.LedControl) return await SendControlCommand(Commands.LightControlCmd, new { status = "close" });
+            Debug.WriteLine("SetLedOff() error, LEDs not equipped.");
+            return false;
         }
-
+        
+        // todo how do we accurately detect if this is equipped?
         public async Task<bool> TurnRunoutSensorOn()
         {
             return await _tcpClient.TurnRunoutSensorOn();
@@ -87,6 +99,23 @@ namespace FiveMApi.api.controls
         public async Task<bool> TurnRunoutSensorOff()
         {
             return await _tcpClient.TurnRunoutSensorOff();
+        }
+        
+        // Filament load/unload/change todo move to its own class
+        
+        public async Task<bool> PrepareFilamentLoad(Filament filament)
+        {
+            return await _tcpClient.PrepareFilamentLoad(filament);
+        }
+
+        public async Task<bool> LoadFilament()
+        {
+            return await _tcpClient.LoadFilament();
+        }
+
+        public async Task<bool> FinishFilamentLoad()
+        {
+            return await _tcpClient.FinishFilamentLoad();
         }
         
         

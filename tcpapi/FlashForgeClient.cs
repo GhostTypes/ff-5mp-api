@@ -74,9 +74,17 @@ namespace FiveMApi.tcpapi
             return await Extrude(300); // purge old filament
         }
 
-        private async Task<bool> PrimeNozzle() { return await Extrude(125); }
-        
-        public async Task<bool> LoadFilament() { return await Extrude(250); }
+        private async Task<bool> PrimeNozzle()
+        {
+            // todo safety check
+            return await Extrude(125);
+        }
+
+        public async Task<bool> LoadFilament()
+        {
+            // todo safety check
+            return await Extrude(250);
+        }
 
         public async Task<bool> FinishFilamentLoad()
         {

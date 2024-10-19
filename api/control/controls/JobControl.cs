@@ -62,7 +62,8 @@ namespace FiveMApi.api.control.controls
                 _client.HttpClient.DefaultRequestHeaders.ExpectContinue = true;
                 try
                 {
-                    var response = await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.UploadFile), content);
+                    var response =
+                        await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.UploadFile), content);
                     response.EnsureSuccessStatusCode();
                     var data = await response.Content.ReadAsStringAsync();
                     var result = JsonConvert.DeserializeObject<Control.GenericResponse>(data);
@@ -74,9 +75,9 @@ namespace FiveMApi.api.control.controls
                 {
                     _client.HttpClient.DefaultRequestHeaders.ExpectContinue = false;
                     Debug.WriteLine($"UploadFile error: {e.Message}\n{e.StackTrace}");
-                    _client.HttpClientSemaphore.Release();
-                    return false;
                 }
+                finally { _client.HttpClientSemaphore.Release(); }
+                return false;
             }
         }
         
@@ -104,12 +105,9 @@ namespace FiveMApi.api.control.controls
                 _client.HttpClientSemaphore.Release();
                 return result.Code == 0 && result.Message.Equals("Success", StringComparison.OrdinalIgnoreCase);
             }
-            catch (Exception e)
-            {
-                Debug.WriteLine($"PrintGcodeFile error: {e.Message}\n{e.StackTrace}");
-                _client.HttpClientSemaphore.Release();
-                return false;
-            }
+            catch (Exception e) { Debug.WriteLine($"PrintGcodeFile error: {e.Message}\n{e.StackTrace}"); }
+            finally { _client.HttpClientSemaphore.Release(); }
+            return false;
         }
     }
 }

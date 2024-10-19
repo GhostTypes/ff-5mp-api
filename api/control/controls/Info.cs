@@ -36,6 +36,7 @@ namespace FiveMApi.api.control.controls
             var info = await Get();
             return info.Status == "printing";
         }
+        
 
         public async Task<string> GetStatus()
         {
