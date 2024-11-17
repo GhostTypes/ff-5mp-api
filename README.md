@@ -2,6 +2,8 @@
 
 **Note:** This project is a work in progress.
 
+**Update:** UI Control software utilizing this API is now available [here](https://github.com/CopeTypes/FlashForgeUI)
+
 ## Overview
 
 With the release of Orca-FlashForge and new firmware updates, previous APIs for the FlashForge 5M series no longer function properly. This API is developed by reverse-engineering the communication between Orca-FlashForge and the printer in LAN-only mode. Using WAN mode routes through FlashCloud, introducing unnecessary latency.
