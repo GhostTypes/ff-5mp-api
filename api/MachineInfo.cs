@@ -1,4 +1,5 @@
 ﻿using System;
+using FiveMApi.api.misc;
 
 namespace FiveMApi.api
 {
@@ -91,11 +92,11 @@ namespace FiveMApi.api
             public string NozzleSize { get; set; } // 0.4mm etc
 
             // Print Bed and Extruder Temp
-            public double PrintBedTemp { get; set; }
-            public double PrintBedSetTemp { get; set; }
+            public Temperature PrintBedTemp { get; set; }
+            public Temperature PrintBedSetTemp { get; set; }
 
-            public double ExtruderTemp { get; set; }
-            public double ExtruderSetTemp { get; set; }
+            public Temperature ExtruderTemp { get; set; }
+            public Temperature ExtruderSetTemp { get; set; }
 
             // Current Print Stats
 
@@ -140,6 +141,12 @@ namespace FiveMApi.api
             /// Estimated time remaining for current job in hh:mm
             /// </summary>
             public string PrintEta { get; set; }
+            
+            /// <summary>
+            /// Estimated completion time of current job
+            /// </summary>
+            public DateTime CompletionTime { get; set; }
+            
             /// <summary>
             /// Current job run time in hh:mm
             /// </summary>
@@ -152,11 +159,13 @@ namespace FiveMApi.api
             public bool IsPrinting() { return Status.Equals("printing"); }
             public bool IsJobComplete() { return Status.Equals("completed"); }
             public bool IsReady() { return Status.Equals("ready"); }
+            public bool IsPaused() { return Status.Equals("paused"); }
             public bool IsBusy() { return Status.Equals("busy"); }
 
             public MachineInfo FromDetail(Detail detail)
             {
                 PrintEta = TimeSpan.FromSeconds(detail.EstimatedTime).ToString(@"hh\:mm");
+                CompletionTime = DateTime.Now + TimeSpan.FromSeconds(detail.EstimatedTime);
                 FormattedRunTime = TimeSpan.FromSeconds(detail.PrintDuration).ToString(@"hh\:mm");
 
                 var totalMinutes = detail.CumulativePrintTime;
@@ -199,8 +208,8 @@ namespace FiveMApi.api
                 MacAddress = detail.MacAddr;
                 IpAddress = detail.IpAddr;
 
-                PrintBedTemp = detail.PlatTemp;
-                PrintBedSetTemp = detail.PlatTargetTemp;
+                PrintBedTemp = new Temperature(detail.PlatTemp);
+                PrintBedSetTemp = new Temperature(detail.PlatTargetTemp);
 
                 PrintDuration = detail.PrintDuration;
                 PrintFileName = detail.PrintFileName;
@@ -213,8 +222,8 @@ namespace FiveMApi.api
                 PrintSpeedAdjust = detail.PrintSpeedAdjust;
 
                 FilamentType = detail.RightFilamentType;
-                ExtruderTemp = detail.RightTemp;
-                ExtruderSetTemp = detail.RightTargetTemp;
+                ExtruderTemp = new Temperature(detail.RightTemp);
+                ExtruderSetTemp = new Temperature(detail.RightTargetTemp);
 
                 Status = detail.Status;
                 TotalPrintLayers = detail.TargetPrintLayer;

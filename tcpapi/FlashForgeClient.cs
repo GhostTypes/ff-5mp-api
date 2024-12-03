@@ -8,7 +8,7 @@ using FiveMApi.tcpapi.replays;
 namespace FiveMApi.tcpapi
 {
     public class FlashForgeClient : FlashForgeTcpClient
-    {
+    { // Legacy API for older printers, but also allows for more control in combination with FiveMClient on newer printers (5m+)
         private readonly GCodeController _control;
         
         public FlashForgeClient(string hostname) : base(hostname)
@@ -20,21 +20,36 @@ namespace FiveMApi.tcpapi
 
         internal GCodeController GCode() { return _control; } // helper
         
+        // todo check if any other older printers have a runout sensor
+        // and if so, make sure the g-code command is the same
+        private bool is5mPro;
+        
         public async Task<bool> InitControl()
         {
+            Debug.WriteLine("(Legacy API) InitControl()");
             var tries = 0;
-            while (tries <= 5)
+            while (tries <= 3)
             {
                 var result = await SendRawCmd(GCodes.CmdLogin);
                 if (!result.Contains("Control failed.") && result.Contains("ok"))
                 {
+                    await Task.Delay(100);
+                    var info = await GetPrinterInfo();
+                    if (info == null)
+                    {
+                        Debug.WriteLine("(Legacy API) Failed to get printer info, aborting.");
+                        return false;
+                    }
+                    Debug.WriteLine("(Legacy API) connected to: " + info.TypeName);
+                    Debug.WriteLine("(Legacy API) Firmware version: " + info.FirmwareVersion);
+                    if (info.TypeName.Contains("5M") && info.TypeName.Contains("Pro")) is5mPro = true;
                     StartKeepAlive(); // socket "times out" printer-side after a few seconds of no incoming commands..
                     return true;
                 }
                 tries++;
                 // ensures no errors from previous connections that were improperly closed
                 await SendRawCmd(GCodes.CmdLogout);
-                await Task.Delay(500);
+                await Task.Delay(500 * tries);
             }
 
             return false;
@@ -44,9 +59,19 @@ namespace FiveMApi.tcpapi
 
         public async Task<bool> RapidHome() { return await _control.RapidHome(); }
 
-        public async Task<bool> TurnRunoutSensorOn() { return await SendCmdOk(GCodes.CmdRunoutSensorOn); }
+        public async Task<bool> TurnRunoutSensorOn()
+        {
+            if (is5mPro) return await SendCmdOk(GCodes.CmdRunoutSensorOn);
+            Debug.WriteLine("Filament runout sensor not equipped on this printer.");
+            return false;
+        }
 
-        public async Task<bool> TurnRunoutSensorOff() { return await SendCmdOk(GCodes.CmdRunoutSensorOff); }
+        public async Task<bool> TurnRunoutSensorOff()
+        {
+            if (is5mPro) return await SendCmdOk(GCodes.CmdRunoutSensorOff);
+            Debug.WriteLine("Filament runout sensor not equipped on this printer.");
+            return false;
+        }
 
         public async Task<bool> SetExtruderTemp(int temp, bool waitFor = false) { return await _control.SetExtruderTemp(temp, waitFor); }
 
@@ -69,6 +94,7 @@ namespace FiveMApi.tcpapi
             if (!await CancelExtruderTemp()) return false;
             if (!await SendCmdOk("~G90")) return false; // absolute mode ok
             if (!await HomeAxes()) return false;
+            // todo should probably adjust this feedrate for older printers..
             if (!await MoveExtruder(0, 0, 9000)) return false;
             if (!await SetExtruderTemp(filament.LoadTemp, true)) return false; // heat extruder (and wait for it)
             return await Extrude(300); // purge old filament
@@ -76,14 +102,23 @@ namespace FiveMApi.tcpapi
 
         private async Task<bool> PrimeNozzle()
         {
-            // todo safety check
-            return await Extrude(125);
+            if (await CanExtrude()) return await Extrude(125);
+            Debug.WriteLine("PrimeNozzle() failed, nozzle is not hot enough.");
+            return false;
         }
 
         public async Task<bool> LoadFilament()
         {
-            // todo safety check
-            return await Extrude(250);
+            if (await CanExtrude()) return await Extrude(250);
+            Debug.WriteLine("LoadFilament() failed, nozzle is not hot enough.");
+            return false;
+        }
+
+        private async Task<bool> CanExtrude()
+        {
+            var nozzleTemp = await GetNozzleTemp();
+            // todo this might need adjustment?
+            return nozzleTemp >= 210;
         }
 
         public async Task<bool> FinishFilamentLoad()
@@ -124,5 +159,11 @@ namespace FiveMApi.tcpapi
         public async Task<EndstopStatus> GetEndstopInfo() { return new EndstopStatus().FromReplay(await SendCommandAsync(GCodes.CmdEndstopInfo)); }
         public async Task<PrintStatus> GetPrintStatus() { return new PrintStatus().FromReplay(await SendCommandAsync(GCodes.CmdPrintStatus)); }
         public async Task<LocationInfo> GetLocationInfo() { return new LocationInfo().FromReplay(await SendCommandAsync(GCodes.CmdInfoXyzab)); }
+
+        private async Task<int> GetNozzleTemp()
+        {
+            var temps = await GetTempInfo();
+            return temps.GetExtruderTemp().GetCurrent();
+        }
     }
 }

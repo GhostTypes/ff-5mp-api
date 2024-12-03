@@ -66,9 +66,9 @@ namespace FiveMApi.api.control.controls
                         await _client.HttpClient.PostAsync(_client.GetEndpoint(Endpoints.UploadFile), content);
                     response.EnsureSuccessStatusCode();
                     var data = await response.Content.ReadAsStringAsync();
+                    Debug.WriteLine("UploadFile raw response: " + data);
                     var result = JsonConvert.DeserializeObject<Control.GenericResponse>(data);
                     _client.HttpClient.DefaultRequestHeaders.ExpectContinue = false;
-                    _client.HttpClientSemaphore.Release();
                     return result.Message.Equals("Success");
                 }
                 catch (Exception e)
@@ -102,7 +102,6 @@ namespace FiveMApi.api.control.controls
 
                 var data = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<Control.GenericResponse>(data);
-                _client.HttpClientSemaphore.Release();
                 return result.Code == 0 && result.Message.Equals("Success", StringComparison.OrdinalIgnoreCase);
             }
             catch (Exception e) { Debug.WriteLine($"PrintGcodeFile error: {e.Message}\n{e.StackTrace}"); }
