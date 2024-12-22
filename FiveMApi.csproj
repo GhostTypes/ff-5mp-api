@@ -92,6 +92,7 @@
         <Compile Include="api\filament\Filaments.cs" />
         <Compile Include="api\FiveMClient.cs" />
         <Compile Include="api\MachineInfo.cs" />
+        <Compile Include="api\MachineState.cs" />
         <Compile Include="api\misc\ScientificNotationFloatConverter.cs" />
         <Compile Include="api\misc\Temperature.cs" />
         <Compile Include="api\PrinterDiscovery.cs" />

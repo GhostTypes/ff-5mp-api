@@ -86,9 +86,13 @@ namespace FiveMApi.api
             /// Current print infill amount
             /// </summary>
             public int FillAmount { get; set; }
-            public string FirmwareVersion { get; set; }
+            
+            
+            public string FirmwareVersion { get; set; } // newer firmwares (noticed after updating to 2.7.6) have -semvar (like 2.3.3) that does not get reported.
 
             public string Name { get; set; } // Adventurer 5M Pro
+
+            public bool IsPro => Name.Contains("Pro");
             public string NozzleSize { get; set; } // 0.4mm etc
 
             // Print Bed and Extruder Temp
@@ -126,7 +130,11 @@ namespace FiveMApi.api
 
             public double PrintSpeedAdjust { get; set; } // Changed from int to double
             public string FilamentType { get; set; }
-
+            
+            /// <summary>
+            /// The current state of the machine, will replace MachineInfo.Status
+            /// </summary>
+            public MachineState MachineState { get; set; }
             public string Status { get; set; }
             public int TotalPrintLayers { get; set; }
             public int Tvoc { get; set; }
@@ -155,13 +163,47 @@ namespace FiveMApi.api
             /// Lifetime run time in hh:mm
             /// </summary>
             public string FormattedTotalRunTime { get; set; }
-
+            
+            // todo phase this out
             public bool IsPrinting() { return Status.Equals("printing"); }
             public bool IsJobComplete() { return Status.Equals("completed"); }
             public bool IsReady() { return Status.Equals("ready"); }
             public bool IsPaused() { return Status.Equals("paused"); }
             public bool IsBusy() { return Status.Equals("busy"); }
 
+            public bool IsHeating() { return Status.Equals("heating"); }
+            public bool IsCalibrating() { return Status.Equals("calibrate_doing"); }
+            public bool HasError() { return Status.Equals("error"); }
+            
+            private static MachineState GetState(string test)
+            {
+                switch (test)
+                {
+                    case "ready":
+                        return MachineState.Ready;
+                    case "busy":
+                        return MachineState.Busy;
+                    case "calibrate_doing":
+                        return MachineState.Calibrating;
+                    case "error":
+                        return MachineState.Error;
+                    case "heating":
+                        return MachineState.Heating;
+                    case "printing":
+                        return MachineState.Printing;
+                    case "pausing":
+                        return MachineState.Pausing;
+                    case "paused":
+                        return MachineState.Paused;
+                    case "cancelled": // todo verify this
+                        return MachineState.Cancelled;
+                    case "completed":
+                        return MachineState.Completed;
+                    default:
+                        return MachineState.Unknown;
+                }
+            }
+            
             public MachineInfo FromDetail(Detail detail)
             {
                 PrintEta = TimeSpan.FromSeconds(detail.EstimatedTime).ToString(@"hh\:mm");
@@ -225,6 +267,7 @@ namespace FiveMApi.api
                 ExtruderTemp = new Temperature(detail.RightTemp);
                 ExtruderSetTemp = new Temperature(detail.RightTargetTemp);
 
+                MachineState = GetState(detail.Status);
                 Status = detail.Status;
                 TotalPrintLayers = detail.TargetPrintLayer;
                 Tvoc = detail.Tvoc;
@@ -236,5 +279,6 @@ namespace FiveMApi.api
                 return this;
             }
         }
+        
     }
 }

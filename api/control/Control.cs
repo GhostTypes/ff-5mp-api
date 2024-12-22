@@ -55,6 +55,22 @@ namespace FiveMApi.api.controls
             Debug.WriteLine("SetFiltrationOff() error , filtration not equipped.");
             return false;
         }
+        
+        // todo not sure if this should hinge on it being the "pro" model
+        // but i don't know how 3rd-party camera setups work. It would be great to support those as well
+        
+        public async Task<bool> TurnCameraOn()
+        {
+            if (!_client.IsPro) return false;
+            return await SendCameraCommand(true);
+        }
+
+        public async Task<bool> TurnCameraOff()
+        {
+            if (!_client.IsPro) return false;
+            return await SendCameraCommand(false);
+        }
+        
 
         public async Task<bool> SetSpeedOverride(int speed)
         {
@@ -237,6 +253,12 @@ namespace FiveMApi.api.controls
         private async Task<bool> SendFiltrationCommand(FiltrationArgs argz)
         {
             return await SendControlCommand(Commands.CirculationControlCmd, argz);
+        }
+
+        private async Task<bool> SendCameraCommand(bool enabled)
+        {
+            var payload = new { action = enabled ? "open" : "close" };
+            return await SendControlCommand(Commands.CameraControlCmd, payload);
         }
     }
 }

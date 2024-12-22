@@ -87,6 +87,8 @@ namespace FiveMApi.api
             Info = new Info(this);
             Files = new Files(this);
             TempControl = new TempControl(this);
+            // initial cache
+            Task.Run(CacheDetails);
         }
 
         public async Task<bool> InitControl()
@@ -110,6 +112,7 @@ namespace FiveMApi.api
             if (info == null) return false;
             PrinterName = info.Name;
             IsPro = PrinterName.Contains("Pro"); // check for pro-model specifics
+            Console.WriteLine("IsPro: " + IsPro);
             FirmwareVersion = info.FirmwareVersion;
             MacAddress = info.MacAddress;
             FlashCloudCode = info.FlashCloudRegisterCode;
