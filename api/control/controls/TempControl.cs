@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+using FiveMApi.api.server;
 using FiveMApi.tcpapi;
 
 namespace FiveMApi.api.controls
@@ -27,6 +28,26 @@ namespace FiveMApi.api.controls
         {
             await _tcpClient.GCode().WaitForBedTemp(temp);
         }
+        
+        // todo this *should* work as is but I can't find any reference to it's use in FlashForge src
+        // There is a fair bit of code in FlashNetwork but only a small amount is actually implemented (in slicers or in the library itself)
+        // So until it breaks I'll continue to use the TCP api for temp control and other "lower level" controls
+        
+        /*private async Task<bool> SendTempControlCommand(double bedTemp, double rightExtruder, double leftExtruder,
+            double chamberTemp)
+        {
+            var payload = new
+            {
+                platformTemp = bedTemp,
+                rightTemp = rightExtruder,
+                leftTemp = leftExtruder,
+                chamberTemp = chamberTemp
+            };
+
+            return await _printerClient.Control.SendControlCommand(Commands.TempControlCmd, payload);
+        }*/
+        
+        
         
     }
 }

@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace FiveMApi.api
 {
+    // todo this fails when the user has a VPN enabled, not sure why
+    // should fix eventually.
     public class FlashForgePrinter
     {
         public string Name { get; set; }
@@ -26,7 +28,7 @@ namespace FiveMApi.api
     public class FlashForgePrinterDiscovery
     {
         private const int DiscoveryPort = 19000;
-
+        
         public async Task<List<FlashForgePrinter>> DiscoverPrintersAsync(int timeoutMs = 10000, int idleTimeoutMs = 1500, int maxRetries = 3)
         {
             var printers = new List<FlashForgePrinter>();

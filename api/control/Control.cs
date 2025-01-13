@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using FiveMApi.api.filament;
 using FiveMApi.api.misc;
+using FiveMApi.api.network;
 using FiveMApi.api.server;
 using FiveMApi.tcpapi;
 using Newtonsoft.Json;
@@ -169,7 +170,7 @@ namespace FiveMApi.api.controls
                 var data = await response.Content.ReadAsStringAsync();
                 Debug.WriteLine($"Command reply: {data}");
                 var result = JsonConvert.DeserializeObject<GenericResponse>(data);
-                return result.Message.Equals("Success");
+                return NetworkUtils.IsOk(result);
             }
             catch (Exception e)
             {

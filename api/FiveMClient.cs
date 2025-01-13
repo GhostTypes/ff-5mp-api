@@ -11,6 +11,7 @@ using System.Drawing;
 using System.Threading;
 using FiveMApi.api.control.controls;
 using FiveMApi.api.controls;
+using FiveMApi.api.network;
 using FiveMApi.api.server;
 using FiveMApi.tcpapi;
 using SkiaSharp;
@@ -56,6 +57,8 @@ namespace FiveMApi.api
         public string PrinterName { get; private set; }
         public bool IsPro { get; private set; }
         public string FirmwareVersion { get; private set; }
+        
+        public Version FirmVer { get; set; }
 
         public string IpAddress { get; }
         public string MacAddress { get; private set; }
@@ -88,7 +91,8 @@ namespace FiveMApi.api
             Files = new Files(this);
             TempControl = new TempControl(this);
             // initial cache
-            Task.Run(CacheDetails);
+            Task.Run(VerifyConnection);
+            // todo should run verify connection here maybe?
         }
 
         public async Task<bool> InitControl()
@@ -106,14 +110,14 @@ namespace FiveMApi.api
             TcpClient.Dispose();
         }
 
-        public async Task<bool> CacheDetails()
+        public bool CacheDetails(MachineInfo info)
         {
-            var info = await Info.Get();
+            //var info = await Info.Get();
             if (info == null) return false;
             PrinterName = info.Name;
             IsPro = PrinterName.Contains("Pro"); // check for pro-model specifics
-            Console.WriteLine("IsPro: " + IsPro);
             FirmwareVersion = info.FirmwareVersion;
+            FirmVer = Version.Parse(FirmwareVersion.Split('-')[0]); // save as version for comparison
             MacAddress = info.MacAddress;
             FlashCloudCode = info.FlashCloudRegisterCode;
             PolarCloudCode = info.PolarCloudRegisterCode;
@@ -130,9 +134,9 @@ namespace FiveMApi.api
 
         public async Task<bool> VerifyConnection()
         {
-            await CacheDetails(); // cache these immediately (for use in UI)
-            var details = await Info.GetDetailResponse();
-            return details != null && details.Message.Equals("Success");
+            var response = await Info.GetDetailResponse(); // get the raw response
+            if (response.Message != "Success" || (FNetCode)response.Code != FNetCode.Ok) return false; // check status first
+            return CacheDetails(new MachineInfo().FromDetail(response.Detail)); // if all is good -> MachineInfo and cache useful info
         }
 
         public async Task<bool> SendProductCommand()
