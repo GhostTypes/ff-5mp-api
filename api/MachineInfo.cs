@@ -7,6 +7,8 @@ namespace FiveMApi.api
     {
         public class MachineInfo
         {
+            // Translates flashforge response (DetailResponse) into something that's easier to use
+            // Also drops some unnecessary values
 
             /// <summary>
             /// If auto shutdown is enabled
@@ -193,7 +195,7 @@ namespace FiveMApi.api
                         return MachineState.Pausing;
                     case "paused":
                         return MachineState.Paused;
-                    case "cancel": // verified as of fw 3.13.3 (changed from cancelled)
+                    case "cancel": // verified as of fw 3.1.3 (changed from cancelled)
                         return MachineState.Cancelled;
                     case "completed":
                         return MachineState.Completed;
@@ -230,6 +232,7 @@ namespace FiveMApi.api
                 CurrentPrintSpeed = detail.CurrentPrintSpeed;
                 ErrorCode = detail.ErrorCode;
                 
+
                 var totalJobFilamentMeters = detail.EstimatedRightLen / 1000.0; // Convert total estimated filament from millimeters to meters
                 var filamentUsedSoFarMeters = totalJobFilamentMeters * detail.PrintProgress; // Calculate filament used so far based on print progress
                 EstLength = filamentUsedSoFarMeters;

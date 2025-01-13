@@ -39,12 +39,12 @@ namespace FiveMApi.api.control.controls
             return await _control.SendJobControlCmd("cancel");
         }
 
-        // Check for firmware 3.13.3+
+        // Check for firmware 3.1.3+
         private bool IsNewFirmwareVersion()
         {
             try
             {
-                var minVersion = new Version(3, 13, 3);
+                var minVersion = new Version(3, 1, 3);
                 return _client.FirmVer >= minVersion;
             }
             catch
@@ -81,7 +81,7 @@ namespace FiveMApi.api.control.controls
                 MultipartFormDataContent content;
                 if (IsNewFirmwareVersion())
                 {
-                    // New format for firmware >= 3.13.3
+                    // New format for firmware >= 3.1.3
                     content = new MultipartFormDataContent("------------------------v3GcLTGebpPzgLGBOgAQKJ");
                     content.Headers.Add("serialNumber", _client.SerialNumber);
                     content.Headers.Add("checkCode", _client.CheckCode);
@@ -95,7 +95,7 @@ namespace FiveMApi.api.control.controls
                 }
                 else
                 {
-                    // Old format for firmware < 3.13.3
+                    // Old format for firmware < 3.1.3
                     content = new MultipartFormDataContent("------------------------DHD3lr8XwXBuyC8G3dWjK7");
                     content.Headers.Add("serialNumber", _client.SerialNumber);
                     content.Headers.Add("checkCode", _client.CheckCode);
@@ -140,7 +140,7 @@ namespace FiveMApi.api.control.controls
             object payload;
             if (IsNewFirmwareVersion())
             {
-                // New format for firmware >= 3.13.3
+                // New format for firmware >= 3.1.3
                 payload = new
                 {
                     serialNumber = _client.SerialNumber,
@@ -155,7 +155,7 @@ namespace FiveMApi.api.control.controls
             }
             else
             {
-                // Old format for firmware < 3.13.3
+                // Old format for firmware < 3.1.3
                 payload = new
                 {
                     serialNumber = _client.SerialNumber,

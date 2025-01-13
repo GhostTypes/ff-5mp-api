@@ -43,6 +43,12 @@ namespace FiveMApi.api.control.controls
             var info = await Get();
             return info.Status;
         }
+
+        public async Task<MachineState> GetState()
+        {
+            var info = await Get();
+            return info.MachineState;
+        }
         
         public async Task<DetailResponse> GetDetailResponse()
         {
