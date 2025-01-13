@@ -1,7 +1,6 @@
 # API Changes & Documentation
 - Previously, all communication was done over TCP, with no authentication process. All requests now require the printer's serial number, and a "check code".
-- Additionally, the port for communication has been changed to 8898, from 8899
-- It appears support for sending direct G/MCodes has been removed (or hidden more)
+- The port for communication has been changed back to 8898 (as of firmware 3.13)
 
 ## Generic request structure
 - The check code can be obtained from the printer's UI, in network mode settings. <br>
@@ -129,48 +128,20 @@ Internal/External Filtration
 ```
 
 ## /uploadGcode
-- More info needed
-
-Example upload in C#
+- Uploading a .gcode/3mf file (as of firmware 3.13), needs an updated example.
 ```
-public async Task<bool> UploadFile(string filePath, bool startPrint, bool levelBeforePrint)
-        {
-            var fileInfo = new FileInfo(filePath);
-            var fileSize = fileInfo.Length;
-            
-            using (var content = new MultipartFormDataContent("------------------------DHD3lr8XwXBuyC8G3dWjK7"))
-            {
-                content.Headers.Add("serialNumber", _serialNumber);
-                content.Headers.Add("checkCode", _checkCode);
-                content.Headers.Add("fileSize", fileSize.ToString());
-                content.Headers.Add("printNow", startPrint.ToString().ToLower());
-                content.Headers.Add("levelingBeforePrint", levelBeforePrint.ToString().ToLower());
-
-                var fileContent = new StreamContent(fileInfo.OpenRead());
-                fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
-                fileContent.Headers.ContentDisposition = new ContentDispositionHeaderValue("form-data")
-                {
-                    Name = "\"gcodeFile\"",
-                    FileName = "\"" + fileInfo.Name + "\""
-                };
-                content.Add(fileContent);
-
-                _client.DefaultRequestHeaders.ExpectContinue = true;
-                try
-                {
-                    var response = await _client.PostAsync(GetEndpoint(UploadFileEndpoint), content);
-                    response.EnsureSuccessStatusCode();
-                    var data = await response.Content.ReadAsStringAsync();
-                    var result = JsonConvert.DeserializeObject<GenericResponse>(data);
-                    _client.DefaultRequestHeaders.ExpectContinue = false;
-                    return result.Message.Equals("Success");
-                }
-                catch (Exception e)
-                {
-                    _client.DefaultRequestHeaders.ExpectContinue = false;
-                    Console.WriteLine($"UploadFile error: {e.Message}\n{e.StackTrace}");
-                    return false;
-                }
-            }
-        }
+POST /uploadGcode HTTP/1.1
+Host: 192.168.0.204:8898
+Accept: */*
+serialNumber:omitted
+checkCode:omitted
+fileSize:912373
+printNow:true
+levelingBeforePrint:true
+flowCalibration:false
+useMatlStation:false
+gcodeToolCnt:0
+materialMappings:W10=
+Content-Length: 912594
+Content-Type: multipart/form-data; boundary=------------------------v3GcLTGebpPzgLGBOgAQKJ
 ```
