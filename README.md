@@ -1,8 +1,6 @@
-# FlashForge 5M Pro API
+# FlashForge 5M (Pro) API
 
-**Note:** This project is a work in progress.
-
-**Update:** UI Control software utilizing this API is now available [here](https://github.com/CopeTypes/FlashForgeUI)
+UI Control software utilizing this API is being developed [here](https://github.com/CopeTypes/FlashForgeUI)
 
 ## Overview
 
@@ -11,6 +9,9 @@ With the release of Orca-FlashForge and new firmware updates, previous APIs for 
 ## Compatibility
 
 While many features may work on older FlashForge printers with minimal adjustments, this API specifically targets the **FlashForge 5M and 5M Pro** models.
+
+*Supports firmware: 2.7.X - 3.1.3*
+
 
 *Note: Some features listed may not yet be implemented in the printer hardware, such as the door sensor functionality.*
 
