@@ -1,6 +1,6 @@
 # FlashForge 5M (Pro) API
 
-UI Control software utilizing this API is being developed [here](https://github.com/CopeTypes/FlashForgeUI)
+UI Control software utilizing this API is being developed [here](https://github.com/Parallel-7/FlashForgeUI)
 
 ## Overview
 
