@@ -58,3 +58,11 @@ While many features may work on older FlashForge printers with minimal adjustmen
 ## To-Do
 
 - Implement robust error handling
+
+  <a href="https://star-history.com/#GhostTypes/ff-5mp-api&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=GhostTypes/ff-5mp-api&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=GhostTypes/ff-5mp-api&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=GhostTypes/ff-5mp-api&type=Date" />
+ </picture>
+</a>
