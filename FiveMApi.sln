@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiveMApi", "FiveMApi.csproj", "{9AC38EEA-E166-4DC8-A4B7-2D14A073768F}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FiveMApi", "FiveMApi/FiveMApi.csproj", "{9AC38EEA-E166-4DC8-A4B7-2D14A073768F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
