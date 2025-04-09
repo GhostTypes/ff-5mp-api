@@ -2,6 +2,13 @@
 
 UI Control software utilizing this API is being developed [here](https://github.com/Parallel-7/FlashForgeUI)
 
+## Important
+This API is being ported to TypeScript [here](https://github.com/GhostTypes/ff-5mp-api-ts) and will recieve minimal updates going forward.
+
+
+This being done to enable cross-platform usage through Node.JS, and will be used in an Electron rewrite of FlashForgeUI
+
+
 ## Overview
 
 With the release of Orca-FlashForge and new firmware updates, previous APIs for the FlashForge 5M series no longer function properly. This API is developed by reverse-engineering the communication between Orca-FlashForge and the printer in LAN-only mode. Using WAN mode routes through FlashCloud, introducing unnecessary latency.
@@ -10,7 +17,7 @@ With the release of Orca-FlashForge and new firmware updates, previous APIs for 
 
 While many features may work on older FlashForge printers with minimal adjustments, this API specifically targets the **FlashForge 5M and 5M Pro** models.
 
-*Supports firmware: 2.7.X - 3.1.3*
+*Supports firmware: 2.7.X - 3.1.5*
 
 
 *Note: Some features listed may not yet be implemented in the printer hardware, such as the door sensor functionality.*
