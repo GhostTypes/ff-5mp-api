@@ -14,6 +14,11 @@ namespace FiveMApi.tcpapi.replays
         
         public string ToolCount { get; set; } // unused but in FlashForge fw
 
+        public bool IsPro()
+        {
+            return TypeName.Contains("Pro");
+        }
+
         /**
          * Create a PrinterInfo instance from an M115 command replay
          */

@@ -92,7 +92,7 @@ namespace FiveMApi.api
 
             public string Name { get; set; } // Adventurer 5M Pro
 
-            public bool IsPro => Name.Contains("Pro");
+            //public bool IsPro => Name.Contains("Pro");
             public string NozzleSize { get; set; } // 0.4mm etc
 
             // Print Bed and Extruder Temp

@@ -115,7 +115,7 @@ namespace FiveMApi.api
             //var info = await Info.Get();
             if (info == null) return false;
             PrinterName = info.Name;
-            IsPro = PrinterName.Contains("Pro"); // check for pro-model specifics
+            //IsPro = PrinterName.Contains("Pro"); // check for pro-model specifics
             FirmwareVersion = info.FirmwareVersion;
             FirmVer = Version.Parse(FirmwareVersion.Split('-')[0]); // save as version for comparison
             MacAddress = info.MacAddress;
@@ -136,6 +136,9 @@ namespace FiveMApi.api
         {
             var response = await Info.GetDetailResponse(); // get the raw response
             if (response.Message != "Success" || (FNetCode)response.Code != FNetCode.Ok) return false; // check status first
+            // check pro based on the machine type rather than name, as the user can (and inevitably will) change the machine name
+            var tcpInfo = await TcpClient.GetPrinterInfo();
+            IsPro = tcpInfo.IsPro();
             return CacheDetails(new MachineInfo().FromDetail(response.Detail)); // if all is good -> MachineInfo and cache useful info
         }
 
