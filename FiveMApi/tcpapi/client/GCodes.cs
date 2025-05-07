@@ -11,8 +11,8 @@
         public static readonly string CmdInfoXyzab = "~M114";
         public static readonly string CmdTemp = "~M105";
 
-        //public static readonly string CmdLedOn = "~M146 r255 g255 b255 F0";
-        //public static readonly string CmdLedOff = "~M146 r0 g0 b0 F0";
+        public static readonly string CmdLedOn = "~M146 r255 g255 b255 F0";
+        public static readonly string CmdLedOff = "~M146 r0 g0 b0 F0";
 
         //public static readonly string CmdPrintStart = "~M23 0:/user/%%filename%%\r";
         //public static readonly string CmdPrintStop = "~M26";

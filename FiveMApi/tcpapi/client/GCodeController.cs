@@ -13,7 +13,19 @@ namespace FiveMApi.tcpapi.client
         {
             this.tcpClient = tcpClient;
         }
+        
+        // legacy / custom led control
+        public async Task<bool> LedOn()
+        {
+            return await tcpClient.SendCmdOk(GCodes.CmdLedOn);
+        }
 
+        public async Task<bool> LedOff()
+        {
+            return await tcpClient.SendCmdOk(GCodes.CmdLedOff);
+        }
+        
+        
         // movement
         public async Task<bool> Home()
         {
