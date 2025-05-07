@@ -54,6 +54,10 @@ namespace FiveMApi.tcpapi
 
             return false;
         }
+
+        public async Task<bool> LedOn() { return await _control.LedOn(); }
+        
+        public async Task<bool> LedOff() { return await _control.LedOff(); }
         
         public async Task<bool> HomeAxes() { return await _control.Home(); }
 
